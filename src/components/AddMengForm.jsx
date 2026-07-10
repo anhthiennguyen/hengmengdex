@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { X, ImagePlus, Loader2 } from 'lucide-react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { storage, db } from '../lib/firebase';
+import { db } from '../lib/firebase';
+import { resizeImageToDataUrl } from '../lib/resizeImage';
+
+// Firestore caps documents at 1MB; a resized 240px JPEG is normally a few
+// dozen KB, so this only trips on pathological inputs.
+const MAX_IMAGE_DATA_URL_LENGTH = 700_000;
 
 export default function AddMengForm({ user, onClose }) {
   const [name, setName] = useState('');
@@ -29,10 +33,12 @@ export default function AddMengForm({ user, onClose }) {
 
     setBusy(true);
     try {
-      const path = `meng-images/${user.uid}/${Date.now()}-${file.name}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const imageUrl = await getDownloadURL(storageRef);
+      const imageUrl = await resizeImageToDataUrl(file);
+      if (imageUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
+        setError('That image is too large even after resizing — try a simpler image.');
+        setBusy(false);
+        return;
+      }
 
       await addDoc(collection(db, 'meng'), {
         name: name.trim(),
