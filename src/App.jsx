@@ -6,10 +6,12 @@ import AuthModal from './components/AuthModal';
 import AddMengForm from './components/AddMengForm';
 import { useAuth } from './hooks/useAuth';
 import { useDex } from './hooks/useDex';
+import { useIsAdmin } from './hooks/useIsAdmin';
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
   const { entries, loading: dexLoading, error: dexError } = useDex();
+  const isAdmin = useIsAdmin(user);
 
   const [selected, setSelected] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
@@ -39,7 +41,11 @@ export default function App() {
       </main>
 
       {selected && (
-        <MengModal meng={selected} onClose={() => setSelected(null)} />
+        <MengModal
+          meng={selected}
+          canDelete={!!user && (isAdmin || selected.createdBy === user.uid)}
+          onClose={() => setSelected(null)}
+        />
       )}
 
       {showAuth && (

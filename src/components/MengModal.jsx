@@ -1,6 +1,25 @@
-import { X } from 'lucide-react';
+import { useState } from 'react';
+import { X, Trash2, Loader2 } from 'lucide-react';
+import { deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
-export default function MengModal({ meng, onClose }) {
+export default function MengModal({ meng, canDelete, onClose }) {
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError('');
+    try {
+      await deleteDoc(doc(db, 'meng', meng.id));
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Failed to delete. Please try again.');
+      setDeleting(false);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -25,6 +44,42 @@ export default function MengModal({ meng, onClose }) {
         <div className="p-6">
           <h2 className="text-xl font-extrabold capitalize text-zinc-900">{meng.name}</h2>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">{meng.description}</p>
+
+          {canDelete && (
+            <div className="mt-5 border-t border-zinc-100 pt-4">
+              {error && <p className="mb-2 text-xs font-medium text-red-600">{error}</p>}
+              {confirming ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-600 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {deleting ? <Loader2 size={14} className="animate-spin" /> : null}
+                    {deleting ? 'Deleting…' : 'Confirm delete'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(false)}
+                    disabled={deleting}
+                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirming(true)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-red-600 transition hover:text-red-700"
+                >
+                  <Trash2 size={14} />
+                  Delete entry
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
