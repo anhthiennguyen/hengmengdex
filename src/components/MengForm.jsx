@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, ImagePlus, Loader2 } from 'lucide-react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { resizeImageToDataUrl } from '../lib/resizeImage';
 
@@ -8,27 +8,29 @@ import { resizeImageToDataUrl } from '../lib/resizeImage';
 // dozen KB, so this only trips on pathological inputs.
 const MAX_IMAGE_DATA_URL_LENGTH = 700_000;
 
-export default function AddMengForm({ user, onClose }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [hp, setHp] = useState('');
-  const [attack, setAttack] = useState('');
+export default function MengForm({ user, entry, onClose }) {
+  const isEditing = !!entry;
+
+  const [name, setName] = useState(entry?.name ?? '');
+  const [description, setDescription] = useState(entry?.description ?? '');
+  const [hp, setHp] = useState(entry?.hp != null ? String(entry.hp) : '');
+  const [attack, setAttack] = useState(entry?.attack != null ? String(entry.attack) : '');
   const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [preview, setPreview] = useState(entry?.imageUrl ?? null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   function handleFileChange(e) {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
+    setPreview(f ? URL.createObjectURL(f) : entry?.imageUrl ?? null);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
 
-    if (!name.trim() || !description.trim() || !file) {
+    if (!name.trim() || !description.trim() || (!isEditing && !file)) {
       setError('Name, description, and an image are all required.');
       return;
     }
@@ -39,26 +41,37 @@ export default function AddMengForm({ user, onClose }) {
 
     setBusy(true);
     try {
-      const imageUrl = await resizeImageToDataUrl(file);
-      if (imageUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
-        setError('That image is too large even after resizing — try a simpler image.');
-        setBusy(false);
-        return;
+      let imageUrl = entry?.imageUrl ?? null;
+      if (file) {
+        imageUrl = await resizeImageToDataUrl(file);
+        if (imageUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
+          setError('That image is too large even after resizing — try a simpler image.');
+          setBusy(false);
+          return;
+        }
       }
 
-      await addDoc(collection(db, 'meng'), {
+      const fields = {
         name: name.trim(),
         description: description.trim(),
         hp: parseInt(hp, 10),
         attack: parseInt(attack, 10),
         imageUrl,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-      });
+      };
+
+      if (isEditing) {
+        await updateDoc(doc(db, 'meng', entry.id), fields);
+      } else {
+        await addDoc(collection(db, 'meng'), {
+          ...fields,
+          createdBy: user.uid,
+          createdAt: serverTimestamp(),
+        });
+      }
 
       onClose();
     } catch (err) {
-      setError(err.message || 'Failed to add Meng. Please try again.');
+      setError(err.message || `Failed to ${isEditing ? 'save' : 'add'} Meng. Please try again.`);
     } finally {
       setBusy(false);
     }
@@ -71,7 +84,7 @@ export default function AddMengForm({ user, onClose }) {
     >
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-zinc-900">Add Meng</h2>
+          <h2 className="text-lg font-bold text-zinc-900">{isEditing ? 'Edit Meng' : 'Add Meng'}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -154,7 +167,7 @@ export default function AddMengForm({ user, onClose }) {
             className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-royal-600 py-2.5 text-sm font-bold text-white transition hover:bg-royal-700 disabled:opacity-60"
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}
-            {busy ? 'Adding…' : 'Add to Dex'}
+            {busy ? 'Saving…' : isEditing ? 'Save Changes' : 'Add to Dex'}
           </button>
         </form>
       </div>

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { X, Trash2, Loader2 } from 'lucide-react';
+import { X, Trash2, Pencil, Loader2 } from 'lucide-react';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
-export default function MengModal({ meng, canDelete, onClose }) {
+export default function MengModal({ meng, canManage, onClose, onEdit }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -58,7 +58,7 @@ export default function MengModal({ meng, canDelete, onClose }) {
             </div>
           )}
 
-          {canDelete && (
+          {canManage && (
             <div className="mt-5 border-t border-zinc-100 pt-4">
               {error && <p className="mb-2 text-xs font-medium text-red-600">{error}</p>}
               {confirming ? (
@@ -82,14 +82,24 @@ export default function MengModal({ meng, canDelete, onClose }) {
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirming(true)}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-red-600 transition hover:text-red-700"
-                >
-                  <Trash2 size={14} />
-                  Delete entry
-                </button>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-royal-600 transition hover:text-royal-700"
+                  >
+                    <Pencil size={14} />
+                    Edit entry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(true)}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-red-600 transition hover:text-red-700"
+                  >
+                    <Trash2 size={14} />
+                    Delete entry
+                  </button>
+                </div>
               )}
             </div>
           )}

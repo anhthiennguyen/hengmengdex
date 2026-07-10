@@ -3,7 +3,7 @@ import Navbar from './components/Navbar';
 import PokedexGrid from './components/PokedexGrid';
 import MengModal from './components/MengModal';
 import AuthModal from './components/AuthModal';
-import AddMengForm from './components/AddMengForm';
+import MengForm from './components/MengForm';
 import { useAuth } from './hooks/useAuth';
 import { useDex } from './hooks/useDex';
 import { useIsAdmin } from './hooks/useIsAdmin';
@@ -14,8 +14,11 @@ export default function App() {
   const isAdmin = useIsAdmin(user);
 
   const [selected, setSelected] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+
+  const canManageSelected = !!selected && !!user && (isAdmin || selected.createdBy === user.uid);
 
   return (
     <div className="min-h-screen">
@@ -43,8 +46,12 @@ export default function App() {
       {selected && (
         <MengModal
           meng={selected}
-          canDelete={!!user && (isAdmin || selected.createdBy === user.uid)}
+          canManage={canManageSelected}
           onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditing(selected);
+            setSelected(null);
+          }}
         />
       )}
 
@@ -53,7 +60,11 @@ export default function App() {
       )}
 
       {showAdd && user && (
-        <AddMengForm user={user} onClose={() => setShowAdd(false)} />
+        <MengForm user={user} onClose={() => setShowAdd(false)} />
+      )}
+
+      {editing && user && (
+        <MengForm user={user} entry={editing} onClose={() => setEditing(null)} />
       )}
     </div>
   );
