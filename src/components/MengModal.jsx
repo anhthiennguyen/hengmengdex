@@ -45,6 +45,19 @@ export default function MengModal({ meng, canDelete, onClose }) {
           <h2 className="text-xl font-extrabold capitalize text-zinc-900">{meng.name}</h2>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">{meng.description}</p>
 
+          {(typeof meng.hp === 'number' || typeof meng.attack === 'number') && (
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-royal-50 px-3 py-2 text-center">
+                <div className="text-[10px] font-bold uppercase tracking-wide text-royal-500">HP</div>
+                <div className="text-lg font-extrabold text-royal-700">{meng.hp ?? '—'}</div>
+              </div>
+              <div className="rounded-lg bg-royal-50 px-3 py-2 text-center">
+                <div className="text-[10px] font-bold uppercase tracking-wide text-royal-500">Attack</div>
+                <div className="text-lg font-extrabold text-royal-700">{meng.attack ?? '—'}</div>
+              </div>
+            </div>
+          )}
+
           {canDelete && (
             <div className="mt-5 border-t border-zinc-100 pt-4">
               {error && <p className="mb-2 text-xs font-medium text-red-600">{error}</p>}

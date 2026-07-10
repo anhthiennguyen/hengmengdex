@@ -11,6 +11,8 @@ const MAX_IMAGE_DATA_URL_LENGTH = 700_000;
 export default function AddMengForm({ user, onClose }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [hp, setHp] = useState('');
+  const [attack, setAttack] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
@@ -30,6 +32,10 @@ export default function AddMengForm({ user, onClose }) {
       setError('Name, description, and an image are all required.');
       return;
     }
+    if (!/^\d+$/.test(hp) || !/^\d+$/.test(attack)) {
+      setError('HP and Attack must both be whole numbers.');
+      return;
+    }
 
     setBusy(true);
     try {
@@ -43,6 +49,8 @@ export default function AddMengForm({ user, onClose }) {
       await addDoc(collection(db, 'meng'), {
         name: name.trim(),
         description: description.trim(),
+        hp: parseInt(hp, 10),
+        attack: parseInt(attack, 10),
         imageUrl,
         createdBy: user.uid,
         createdAt: serverTimestamp(),
@@ -107,6 +115,35 @@ export default function AddMengForm({ user, onClose }) {
               rows={3}
               className="w-full resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-zinc-600">HP</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="1"
+                value={hp}
+                onChange={(e) => setHp(e.target.value)}
+                placeholder="35"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-zinc-600">Attack</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="1"
+                value={attack}
+                onChange={(e) => setAttack(e.target.value)}
+                placeholder="55"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+              />
+            </div>
           </div>
 
           {error && <p className="text-xs font-medium text-red-600">{error}</p>}
