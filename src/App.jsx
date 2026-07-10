@@ -9,7 +9,7 @@ import { useDex } from './hooks/useDex';
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
-  const { entries, loading: dexLoading } = useDex();
+  const { entries, loading: dexLoading, error: dexError } = useDex();
 
   const [selected, setSelected] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
@@ -24,7 +24,12 @@ export default function App() {
       />
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {authLoading || dexLoading ? (
+        {dexError ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-red-300 bg-red-50 py-20 text-center">
+            <p className="text-sm font-semibold text-red-600">Couldn't load the dex.</p>
+            <p className="mt-1 max-w-xs text-xs text-red-400">{dexError}</p>
+          </div>
+        ) : authLoading || dexLoading ? (
           <div className="flex justify-center py-20 text-sm font-semibold text-zinc-400">
             Loading dex…
           </div>

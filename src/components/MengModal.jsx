@@ -7,7 +7,7 @@ export default function MengModal({ meng, onClose }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="relative bg-gradient-to-br from-red-500 to-red-700 p-6">
+        <div className="relative bg-gradient-to-br from-royal-500 to-royal-700 p-6">
           <button
             type="button"
             onClick={onClose}

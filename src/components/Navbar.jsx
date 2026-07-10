@@ -7,9 +7,11 @@ export default function Navbar({ user, onOpenAuth, onOpenAdd }) {
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-zinc-900 bg-red-600">
-            <span className="h-2.5 w-2.5 rounded-full border-2 border-zinc-900 bg-white" />
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="HengMeng Dex"
+            className="h-8 w-8 rounded-full border-2 border-zinc-900 object-cover"
+          />
           <span className="text-lg font-extrabold tracking-tight text-zinc-900">HengMeng Dex</span>
         </div>
 
@@ -19,7 +21,7 @@ export default function Navbar({ user, onOpenAuth, onOpenAdd }) {
               <button
                 type="button"
                 onClick={onOpenAdd}
-                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-700"
+                className="flex items-center gap-1.5 rounded-lg bg-royal-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-royal-700"
               >
                 <Plus size={16} />
                 <span className="hidden sm:inline">Add Meng</span>
@@ -41,7 +43,7 @@ export default function Navbar({ user, onOpenAuth, onOpenAdd }) {
             <button
               type="button"
               onClick={onOpenAuth}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700"
+              className="rounded-lg bg-royal-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-royal-700"
             >
               Log In / Sign Up
             </button>

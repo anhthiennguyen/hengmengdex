@@ -75,7 +75,7 @@ export default function AddMengForm({ user, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} className="grid gap-3">
-          <label className="mx-auto flex h-28 w-28 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-zinc-400 hover:border-red-400 hover:text-red-500">
+          <label className="mx-auto flex h-28 w-28 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-zinc-400 hover:border-royal-400 hover:text-royal-500">
             {preview ? (
               <img src={preview} alt="Preview" className="h-full w-full object-cover" />
             ) : (
@@ -94,7 +94,7 @@ export default function AddMengForm({ user, onClose }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Pikachu"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
             />
           </div>
 
@@ -105,7 +105,7 @@ export default function AddMengForm({ user, onClose }) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="When several of these Meng gather, their electricity could build and cause lightning storms."
               rows={3}
-              className="w-full resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="w-full resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
             />
           </div>
 
@@ -114,7 +114,7 @@ export default function AddMengForm({ user, onClose }) {
           <button
             type="submit"
             disabled={busy}
-            className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+            className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-royal-600 py-2.5 text-sm font-bold text-white transition hover:bg-royal-700 disabled:opacity-60"
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}
             {busy ? 'Adding…' : 'Add to Dex'}
