@@ -111,7 +111,7 @@ export default function DexForm({ user, dex, onClose, onCreated }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={60}
-                placeholder="Meng"
+                placeholder="Pokemon"
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
               />
             </div>

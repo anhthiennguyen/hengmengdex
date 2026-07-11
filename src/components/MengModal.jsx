@@ -4,7 +4,7 @@ import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { summarizeRules } from '../lib/ruleSummary';
 
-const CARD_TYPE_LABELS = { meng: 'Meng', trainer: 'Trainer' };
+const CARD_TYPE_LABELS = { meng: 'Pokemon', trainer: 'Trainer' };
 
 export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
   const [confirming, setConfirming] = useState(false);
@@ -48,7 +48,7 @@ export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-extrabold capitalize text-zinc-900">{meng.name}</h2>
             <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
-              {CARD_TYPE_LABELS[meng.cardType] || 'Meng'}
+              {CARD_TYPE_LABELS[meng.cardType] || 'Pokemon'}
             </span>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">{meng.description}</p>

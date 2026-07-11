@@ -304,10 +304,10 @@ class LobbyEngine {
             battle.phase = 'finished';
             if (idxA === -1 && idxB === -1) {
               battle.winner = null;
-              battle.log.push("Neither team drafted a battle-ready Meng — it's a draw.");
+              battle.log.push("Neither team drafted a battle-ready Pokemon — it's a draw.");
             } else {
               battle.winner = idxA === -1 ? pB : pA;
-              battle.log.push(`${battle.names[battle.winner]} wins — the opponent has no battle-ready Meng!`);
+              battle.log.push(`${battle.names[battle.winner]} wins — the opponent has no battle-ready Pokemon!`);
             }
             this._broadcast();
             break;

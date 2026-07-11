@@ -28,7 +28,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
       <Overlay>
         <h2 className="text-center text-lg font-bold text-zinc-900">Draft Your Team</h2>
         <p className="mt-1 text-center text-xs text-zinc-500">
-          {myTurn ? "Your pick — choose a Meng." : `Waiting for ${opponentName} to pick…`}
+          {myTurn ? "Your pick — choose a Pokemon." : `Waiting for ${opponentName} to pick…`}
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-semibold text-zinc-600">
@@ -82,7 +82,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
         {needsMySwap ? (
           <div className="mt-4">
             <p className="mb-2 text-center text-xs font-semibold text-[var(--dex-accent-700)]">
-              Choose your next Meng!
+              Choose your next Pokemon!
             </p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {battle.teams[myPeerId]

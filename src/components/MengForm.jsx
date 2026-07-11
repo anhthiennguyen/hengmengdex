@@ -11,7 +11,7 @@ import RuleBuilder from './RuleBuilder';
 const MAX_IMAGE_DATA_URL_LENGTH = 700_000;
 
 const CARD_TYPES = [
-  { value: 'meng', label: 'Meng' },
+  { value: 'meng', label: 'Pokemon' },
   { value: 'trainer', label: 'Trainer' },
 ];
 
@@ -167,7 +167,7 @@ export default function MengForm({ user, dex, entry, onClose }) {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="When several of these Meng gather, their electricity could build and cause lightning storms."
+              placeholder="When several of these Pokemon gather, their electricity could build and cause lightning storms."
               rows={3}
               className="w-full resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
             />

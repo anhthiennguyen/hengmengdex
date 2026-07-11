@@ -130,7 +130,7 @@ export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAut
               className="flex items-center gap-1.5 rounded-lg bg-[var(--dex-accent-600)] px-3 py-2 text-sm font-bold text-white hover:bg-[var(--dex-accent-700)]"
             >
               <Plus size={16} />
-              Add Meng
+              Add Pokemon
             </button>
           )}
         </div>

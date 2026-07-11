@@ -3,7 +3,7 @@ export default function PokedexGrid({ entries, onSelect }) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-white/60 py-20 text-center">
         <p className="text-sm font-semibold text-zinc-500">The dex is empty.</p>
-        <p className="mt-1 text-xs text-zinc-400">Log in and add the first Meng.</p>
+        <p className="mt-1 text-xs text-zinc-400">Log in and add the first Pokemon.</p>
       </div>
     );
   }
