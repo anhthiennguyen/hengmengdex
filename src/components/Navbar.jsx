@@ -1,8 +1,8 @@
-import { LogOut, Plus, User } from 'lucide-react';
+import { LogOut, Plus, Swords, User } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
-export default function Navbar({ user, onOpenAuth, onOpenAdd }) {
+export default function Navbar({ user, onOpenAuth, onOpenAdd, onCreateLobby }) {
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
@@ -16,6 +16,15 @@ export default function Navbar({ user, onOpenAuth, onOpenAdd }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCreateLobby}
+            className="flex items-center gap-1.5 rounded-lg border border-royal-300 bg-royal-50 px-3 py-2 text-sm font-bold text-royal-700 transition hover:bg-royal-100"
+          >
+            <Swords size={16} />
+            <span className="hidden sm:inline">Create Lobby</span>
+          </button>
+
           {user ? (
             <>
               <button
