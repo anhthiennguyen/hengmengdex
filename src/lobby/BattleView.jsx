@@ -11,7 +11,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
     return (
       <Overlay>
         <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <Loader2 className="animate-spin text-royal-500" size={28} />
+          <Loader2 className="animate-spin text-[var(--dex-accent-500)]" size={28} />
           <p className="text-sm font-semibold text-zinc-700">
             {iAmChallenger
               ? `Waiting for ${opponentName} to accept…`
@@ -79,7 +79,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
 
         {needsMySwap ? (
           <div className="mt-4">
-            <p className="mb-2 text-center text-xs font-semibold text-royal-700">
+            <p className="mb-2 text-center text-xs font-semibold text-[var(--dex-accent-700)]">
               Choose your next Meng!
             </p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -100,7 +100,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             type="button"
             disabled={!myTurn}
             onClick={() => engine.attack(battle.battleId)}
-            className="mx-auto mt-5 flex items-center justify-center gap-2 rounded-lg bg-royal-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-royal-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="mx-auto mt-5 flex items-center justify-center gap-2 rounded-lg bg-[var(--dex-accent-600)] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Swords size={16} />
             {myTurn ? 'Attack' : `Waiting for ${opponentName}…`}
@@ -121,14 +121,14 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
     return (
       <Overlay>
         <div className="flex flex-col items-center gap-2 py-4 text-center">
-          <Trophy className="text-royal-500" size={32} />
+          <Trophy className="text-[var(--dex-accent-500)]" size={32} />
           <h2 className="text-lg font-bold text-zinc-900">
             {iWon ? 'You won!' : `${battle.names[battle.winner]} wins!`}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="mt-3 rounded-lg bg-royal-600 px-4 py-2 text-sm font-bold text-white hover:bg-royal-700"
+            className="mt-3 rounded-lg bg-[var(--dex-accent-600)] px-4 py-2 text-sm font-bold text-white hover:bg-[var(--dex-accent-700)]"
           >
             Back to Lobby
           </button>

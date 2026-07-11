@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import LobbyEngine from './lobbyEngine';
 
-export function useLobbyEngine(mode, lobbyCode) {
+export function useLobbyEngine(mode, lobbyCode, dexId) {
   const engineRef = useRef(null);
   const [snapshot, setSnapshot] = useState(null);
 
   useEffect(() => {
     const engine =
-      mode === 'host' ? LobbyEngine.createHost(lobbyCode) : LobbyEngine.joinGuest(lobbyCode);
+      mode === 'host'
+        ? LobbyEngine.createHost(lobbyCode, dexId)
+        : LobbyEngine.joinGuest(lobbyCode, dexId);
     engineRef.current = engine;
 
     const unsubscribe = engine.subscribe(setSnapshot);
@@ -18,7 +20,7 @@ export function useLobbyEngine(mode, lobbyCode) {
       engineRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, lobbyCode]);
+  }, [mode, lobbyCode, dexId]);
 
   return { snapshot, engine: engineRef.current };
 }

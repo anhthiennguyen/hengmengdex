@@ -10,8 +10,8 @@ export default function MengCardTile({ card, onClick, disabled, selected, showHp
         dead
           ? 'border-zinc-200 bg-zinc-100 opacity-50'
           : selected
-          ? 'border-royal-500 bg-royal-50 shadow-md'
-          : 'border-zinc-200 bg-white hover:border-royal-300 hover:shadow-sm'
+          ? 'border-[var(--dex-accent-500)] bg-[var(--dex-accent-50)] shadow-md'
+          : 'border-zinc-200 bg-white hover:border-[var(--dex-accent-300)] hover:shadow-sm'
       } ${onClick && !disabled ? 'cursor-pointer' : 'cursor-default'}`}
     >
       <img
@@ -27,7 +27,7 @@ export default function MengCardTile({ card, onClick, disabled, selected, showHp
       {typeof card.currentHp === 'number' && typeof card.maxHp === 'number' && (
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
           <div
-            className="h-full bg-royal-500 transition-all"
+            className="h-full bg-[var(--dex-accent-500)] transition-all"
             style={{ width: `${Math.max(0, (card.currentHp / card.maxHp) * 100)}%` }}
           />
         </div>

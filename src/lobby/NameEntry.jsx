@@ -23,11 +23,11 @@ export default function NameEntry({ onSubmit }) {
           onChange={(e) => setName(e.target.value)}
           maxLength={24}
           placeholder="Ansh"
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
         />
         <button
           type="submit"
-          className="shrink-0 rounded-lg bg-royal-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-royal-700"
+          className="shrink-0 rounded-lg bg-[var(--dex-accent-600)] px-4 py-2 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)]"
         >
           Join
         </button>

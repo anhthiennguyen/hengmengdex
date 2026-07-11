@@ -3,7 +3,7 @@ import { X, Trash2, Pencil, Loader2 } from 'lucide-react';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
-export default function MengModal({ meng, canManage, onClose, onEdit }) {
+export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -12,7 +12,7 @@ export default function MengModal({ meng, canManage, onClose, onEdit }) {
     setDeleting(true);
     setError('');
     try {
-      await deleteDoc(doc(db, 'meng', meng.id));
+      await deleteDoc(doc(db, 'dexes', dexId, 'meng', meng.id));
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to delete. Please try again.');
@@ -26,7 +26,7 @@ export default function MengModal({ meng, canManage, onClose, onEdit }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="relative bg-gradient-to-br from-royal-500 to-royal-700 p-6">
+        <div className="relative bg-gradient-to-br from-[var(--dex-accent-500)] to-[var(--dex-accent-700)] p-6">
           <button
             type="button"
             onClick={onClose}
@@ -47,13 +47,13 @@ export default function MengModal({ meng, canManage, onClose, onEdit }) {
 
           {(typeof meng.hp === 'number' || typeof meng.attack === 'number') && (
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="rounded-lg bg-royal-50 px-3 py-2 text-center">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-royal-500">HP</div>
-                <div className="text-lg font-extrabold text-royal-700">{meng.hp ?? '—'}</div>
+              <div className="rounded-lg bg-[var(--dex-accent-50)] px-3 py-2 text-center">
+                <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--dex-accent-500)]">HP</div>
+                <div className="text-lg font-extrabold text-[var(--dex-accent-700)]">{meng.hp ?? '—'}</div>
               </div>
-              <div className="rounded-lg bg-royal-50 px-3 py-2 text-center">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-royal-500">Attack</div>
-                <div className="text-lg font-extrabold text-royal-700">{meng.attack ?? '—'}</div>
+              <div className="rounded-lg bg-[var(--dex-accent-50)] px-3 py-2 text-center">
+                <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--dex-accent-500)]">Attack</div>
+                <div className="text-lg font-extrabold text-[var(--dex-accent-700)]">{meng.attack ?? '—'}</div>
               </div>
             </div>
           )}
@@ -86,7 +86,7 @@ export default function MengModal({ meng, canManage, onClose, onEdit }) {
                   <button
                     type="button"
                     onClick={onEdit}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-royal-600 transition hover:text-royal-700"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-[var(--dex-accent-600)] transition hover:text-[var(--dex-accent-700)]"
                   >
                     <Pencil size={14} />
                     Edit entry

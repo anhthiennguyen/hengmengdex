@@ -2,21 +2,23 @@ import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
-export function useIsAdmin(user) {
-  const [isAdmin, setIsAdmin] = useState(false);
+export function useIsAdmin(user, dex) {
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
 
   useEffect(() => {
     if (!user) {
-      setIsAdmin(false);
+      setIsGlobalAdmin(false);
       return;
     }
     const unsubscribe = onSnapshot(
       doc(db, 'admins', user.uid),
-      (snap) => setIsAdmin(snap.exists()),
-      () => setIsAdmin(false)
+      (snap) => setIsGlobalAdmin(snap.exists()),
+      () => setIsGlobalAdmin(false)
     );
     return unsubscribe;
   }, [user]);
 
-  return isAdmin;
+  const isDexOwner = !!user && !!dex && dex.ownerId === user.uid;
+
+  return isGlobalAdmin || isDexOwner;
 }

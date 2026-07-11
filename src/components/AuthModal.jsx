@@ -74,7 +74,7 @@ export default function AuthModal({ onClose }) {
             type="button"
             onClick={() => { setMode('signin'); setError(''); }}
             className={`flex-1 rounded-md py-1.5 transition ${
-              mode === 'signin' ? 'bg-white text-royal-600 shadow' : 'text-zinc-500'
+              mode === 'signin' ? 'bg-white text-[var(--dex-accent-600)] shadow' : 'text-zinc-500'
             }`}
           >
             Log In
@@ -83,7 +83,7 @@ export default function AuthModal({ onClose }) {
             type="button"
             onClick={() => { setMode('signup'); setError(''); }}
             className={`flex-1 rounded-md py-1.5 transition ${
-              mode === 'signup' ? 'bg-white text-royal-600 shadow' : 'text-zinc-500'
+              mode === 'signup' ? 'bg-white text-[var(--dex-accent-600)] shadow' : 'text-zinc-500'
             }`}
           >
             Sign Up
@@ -99,7 +99,7 @@ export default function AuthModal({ onClose }) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="trainer@example.com"
               autoComplete="username"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
             />
           </div>
           <div>
@@ -110,7 +110,7 @@ export default function AuthModal({ onClose }) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
             />
           </div>
 
@@ -119,7 +119,7 @@ export default function AuthModal({ onClose }) {
           <button
             type="submit"
             disabled={busy}
-            className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-royal-600 py-2.5 text-sm font-bold text-white transition hover:bg-royal-700 disabled:opacity-60"
+            className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--dex-accent-600)] py-2.5 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)] disabled:opacity-60"
           >
             {busy ? (
               <Loader2 size={16} className="animate-spin" />

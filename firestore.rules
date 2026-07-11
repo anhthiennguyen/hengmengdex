@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isGlobalAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function membershipId(dexId) {
+      return request.auth.uid + '_' + dexId;
+    }
+
+    function isDexMember(dexId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/memberships/$(membershipId(dexId)));
+    }
+
+    function isValidDexPayload() {
+      let d = request.resource.data;
+      return d.name is string && d.name.size() > 0 && d.name.size() <= 60 &&
+        d.color is string &&
+        d.maxHp is int && d.maxHp > 0 && d.maxHp <= 1000000 &&
+        d.maxAttack is int && d.maxAttack > 0 && d.maxAttack <= 1000000 &&
+        d.ownerId is string;
+    }
+
+    match /dexes/{dexId} {
+      allow read: if true;
+
+      allow create: if isSignedIn() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        isValidDexPayload();
+
+      allow update: if isSignedIn() &&
+        (resource.data.ownerId == request.auth.uid || isGlobalAdmin()) &&
+        request.resource.data.ownerId == resource.data.ownerId &&
+        isValidDexPayload();
+
+      allow delete: if isSignedIn() &&
+        (resource.data.ownerId == request.auth.uid || isGlobalAdmin());
+
+      match /meng/{entryId} {
+        function dex() {
+          return get(/databases/$(database)/documents/dexes/$(dexId)).data;
+        }
+        function isDexAdmin() {
+          return isSignedIn() && (dex().ownerId == request.auth.uid || isGlobalAdmin());
+        }
+        function withinCaps() {
+          let d = request.resource.data;
+          return d.hp is int && d.hp >= 0 && d.hp <= dex().maxHp &&
+                 d.attack is int && d.attack >= 0 && d.attack <= dex().maxAttack;
+        }
+
+        allow read: if true;
+
+        allow create: if isSignedIn() &&
+          (isDexMember(dexId) || isDexAdmin()) &&
+          request.resource.data.createdBy == request.auth.uid &&
+          withinCaps();
+
+        allow update: if isSignedIn() &&
+          (request.auth.uid == resource.data.createdBy || isDexAdmin()) &&
+          request.resource.data.createdBy == resource.data.createdBy &&
+          withinCaps();
+
+        allow delete: if isSignedIn() &&
+          (request.auth.uid == resource.data.createdBy || isDexAdmin());
+      }
+    }
+
+    match /memberships/{membershipDocId} {
+      allow read: if isSignedIn() &&
+        (resource.data.uid == request.auth.uid || isGlobalAdmin());
+
+      allow create: if isSignedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        membershipDocId == membershipId(request.resource.data.dexId) &&
+        (
+          request.resource.data.role == 'member' ||
+          (request.resource.data.role == 'owner' &&
+           get(/databases/$(database)/documents/dexes/$(request.resource.data.dexId)).data.ownerId == request.auth.uid)
+        );
+
+      allow update: if false;
+
+      allow delete: if isSignedIn() &&
+        (resource.data.uid == request.auth.uid || isGlobalAdmin());
+    }
+
+    // Legacy top-level collection — kept read-only, locked to admin-only
+    // writes, not deleted. Nothing in the app reads/writes this once Phase 6
+    // (rules lockdown) lands.
+    match /meng/{docId} {
+      allow read: if true;
+      allow create: if false;
+      allow update, delete: if isGlobalAdmin();
+    }
+
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}

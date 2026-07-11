@@ -21,8 +21,8 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-async function fetchCardPool() {
-  const snap = await getDocs(collection(db, 'meng'));
+async function fetchCardPool(dexId) {
+  const snap = await getDocs(collection(db, 'dexes', dexId, 'meng'));
   return snap.docs.map((d) => {
     const data = d.data();
     return {
@@ -37,9 +37,10 @@ async function fetchCardPool() {
 }
 
 class LobbyEngine {
-  constructor(role, lobbyCode) {
+  constructor(role, lobbyCode, dexId) {
     this.role = role; // 'host' | 'guest'
     this.lobbyCode = lobbyCode;
+    this.dexId = dexId;
     this.peer = null;
     this.myPeerId = null;
     this.hostConn = null; // guest only
@@ -82,8 +83,8 @@ class LobbyEngine {
 
   // ---- connection setup ----
 
-  static createHost(lobbyCode) {
-    const engine = new LobbyEngine('host', lobbyCode);
+  static createHost(lobbyCode, dexId) {
+    const engine = new LobbyEngine('host', lobbyCode, dexId);
     const peer = new Peer(PEER_PREFIX + lobbyCode);
     engine.peer = peer;
 
@@ -110,8 +111,8 @@ class LobbyEngine {
     return engine;
   }
 
-  static joinGuest(lobbyCode) {
-    const engine = new LobbyEngine('guest', lobbyCode);
+  static joinGuest(lobbyCode, dexId) {
+    const engine = new LobbyEngine('guest', lobbyCode, dexId);
     const peer = new Peer();
     engine.peer = peer;
 
@@ -237,7 +238,7 @@ class LobbyEngine {
         }
 
         try {
-          const pool = await fetchCardPool();
+          const pool = await fetchCardPool(this.dexId);
           if (pool.length < 2) {
             delete this.state.battles[intent.battleId];
             this._broadcast();

@@ -8,7 +8,7 @@ import { resizeImageToDataUrl } from '../lib/resizeImage';
 // dozen KB, so this only trips on pathological inputs.
 const MAX_IMAGE_DATA_URL_LENGTH = 700_000;
 
-export default function MengForm({ user, entry, onClose }) {
+export default function MengForm({ user, dex, entry, onClose }) {
   const isEditing = !!entry;
 
   const [name, setName] = useState(entry?.name ?? '');
@@ -38,6 +38,10 @@ export default function MengForm({ user, entry, onClose }) {
       setError('HP and Attack must both be whole numbers.');
       return;
     }
+    if (parseInt(hp, 10) > dex.maxHp || parseInt(attack, 10) > dex.maxAttack) {
+      setError(`HP and Attack can't exceed this dex's caps (${dex.maxHp} HP / ${dex.maxAttack} Attack).`);
+      return;
+    }
 
     setBusy(true);
     try {
@@ -60,9 +64,9 @@ export default function MengForm({ user, entry, onClose }) {
       };
 
       if (isEditing) {
-        await updateDoc(doc(db, 'meng', entry.id), fields);
+        await updateDoc(doc(db, 'dexes', dex.id, 'meng', entry.id), fields);
       } else {
-        await addDoc(collection(db, 'meng'), {
+        await addDoc(collection(db, 'dexes', dex.id, 'meng'), {
           ...fields,
           createdBy: user.uid,
           createdAt: serverTimestamp(),
@@ -96,7 +100,7 @@ export default function MengForm({ user, entry, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} className="grid gap-3">
-          <label className="mx-auto flex h-28 w-28 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-zinc-400 hover:border-royal-400 hover:text-royal-500">
+          <label className="mx-auto flex h-28 w-28 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-zinc-400 hover:border-[var(--dex-accent-400)] hover:text-[var(--dex-accent-500)]">
             {preview ? (
               <img src={preview} alt="Preview" className="h-full w-full object-cover" />
             ) : (
@@ -115,7 +119,7 @@ export default function MengForm({ user, entry, onClose }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Pikachu"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
             />
           </div>
 
@@ -126,35 +130,37 @@ export default function MengForm({ user, entry, onClose }) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="When several of these Meng gather, their electricity could build and cause lightning storms."
               rows={3}
-              className="w-full resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+              className="w-full resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-zinc-600">HP</label>
+              <label className="mb-1 block text-xs font-semibold text-zinc-600">HP (max {dex.maxHp})</label>
               <input
                 type="number"
                 inputMode="numeric"
                 min="0"
+                max={dex.maxHp}
                 step="1"
                 value={hp}
                 onChange={(e) => setHp(e.target.value)}
                 placeholder="35"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-zinc-600">Attack</label>
+              <label className="mb-1 block text-xs font-semibold text-zinc-600">Attack (max {dex.maxAttack})</label>
               <input
                 type="number"
                 inputMode="numeric"
                 min="0"
+                max={dex.maxAttack}
                 step="1"
                 value={attack}
                 onChange={(e) => setAttack(e.target.value)}
                 placeholder="55"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
               />
             </div>
           </div>
@@ -164,7 +170,7 @@ export default function MengForm({ user, entry, onClose }) {
           <button
             type="submit"
             disabled={busy}
-            className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-royal-600 py-2.5 text-sm font-bold text-white transition hover:bg-royal-700 disabled:opacity-60"
+            className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--dex-accent-600)] py-2.5 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)] disabled:opacity-60"
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}
             {busy ? 'Saving…' : isEditing ? 'Save Changes' : 'Add to Dex'}

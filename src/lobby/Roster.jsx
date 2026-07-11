@@ -13,16 +13,16 @@ export default function Roster({ roster, myPeerId, incomingRequests, onChallenge
           {incomingRequests.map((battle) => (
             <div
               key={battle.battleId}
-              className="flex items-center justify-between rounded-xl border border-royal-200 bg-royal-50 px-4 py-3"
+              className="flex items-center justify-between rounded-xl border border-[var(--dex-accent-200)] bg-[var(--dex-accent-50)] px-4 py-3"
             >
-              <span className="text-sm font-semibold text-royal-800">
+              <span className="text-sm font-semibold text-[var(--dex-accent-800)]">
                 {battle.names[battle.challenger]} wants to battle!
               </span>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => onRespond(battle.battleId, true)}
-                  className="flex items-center gap-1 rounded-lg bg-royal-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-royal-700"
+                  className="flex items-center gap-1 rounded-lg bg-[var(--dex-accent-600)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--dex-accent-700)]"
                 >
                   <Check size={14} /> Accept
                 </button>
@@ -51,8 +51,8 @@ export default function Roster({ roster, myPeerId, incomingRequests, onChallenge
               p.peerId === myPeerId
                 ? 'border-zinc-200 bg-zinc-50 text-zinc-400'
                 : target === p.peerId
-                ? 'border-royal-500 bg-royal-50 font-semibold text-royal-700'
-                : 'border-zinc-200 bg-white hover:border-royal-300'
+                ? 'border-[var(--dex-accent-500)] bg-[var(--dex-accent-50)] font-semibold text-[var(--dex-accent-700)]'
+                : 'border-zinc-200 bg-white hover:border-[var(--dex-accent-300)]'
             }`}
           >
             {p.name} {p.peerId === myPeerId && '(you)'}
@@ -69,7 +69,7 @@ export default function Roster({ roster, myPeerId, incomingRequests, onChallenge
         type="button"
         disabled={!target}
         onClick={() => target && onChallenge(target)}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-royal-600 py-2.5 text-sm font-bold text-white transition hover:bg-royal-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--dex-accent-600)] py-2.5 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Swords size={16} />
         Battle

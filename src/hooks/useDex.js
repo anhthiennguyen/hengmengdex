@@ -1,27 +1,57 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
-export function useDex() {
+export function useDex(dexId) {
+  const [dex, setDex] = useState(null);
   const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dexLoading, setDexLoading] = useState(true);
+  const [entriesLoading, setEntriesLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'meng'), orderBy('createdAt', 'asc'));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        setEntries(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-        setLoading(false);
+    if (!dexId) {
+      setDex(null);
+      setEntries([]);
+      setDexLoading(false);
+      setEntriesLoading(false);
+      return;
+    }
+
+    setDexLoading(true);
+    setEntriesLoading(true);
+    setError(null);
+
+    const unsubDex = onSnapshot(
+      doc(db, 'dexes', dexId),
+      (snap) => {
+        setDex(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        setDexLoading(false);
       },
       (err) => {
         setError(err.message);
-        setLoading(false);
+        setDexLoading(false);
       }
     );
-    return unsubscribe;
-  }, []);
 
-  return { entries, loading, error };
+    const entriesQuery = query(collection(db, 'dexes', dexId, 'meng'), orderBy('createdAt', 'asc'));
+    const unsubEntries = onSnapshot(
+      entriesQuery,
+      (snapshot) => {
+        setEntries(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setEntriesLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setEntriesLoading(false);
+      }
+    );
+
+    return () => {
+      unsubDex();
+      unsubEntries();
+    };
+  }, [dexId]);
+
+  return { dex, entries, loading: dexLoading || entriesLoading, error };
 }

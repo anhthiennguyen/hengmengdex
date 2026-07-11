@@ -1,22 +1,35 @@
 import { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
-import PokedexGrid from './components/PokedexGrid';
-import MengModal from './components/MengModal';
+import DexList from './components/DexList';
+import DexView from './components/DexView';
 import AuthModal from './components/AuthModal';
-import MengForm from './components/MengForm';
 import LobbyPage from './lobby/LobbyPage';
-import { generateLobbyCode } from './lobby/lobbyEngine';
 import { useAuth } from './hooks/useAuth';
-import { useDex } from './hooks/useDex';
-import { useIsAdmin } from './hooks/useIsAdmin';
 
 function parseLocation() {
-  const match = window.location.pathname.match(/^\/lobby\/([A-Za-z0-9-]+)$/);
-  if (!match) return null;
-  return {
-    lobbyCode: match[1],
-    mode: new URLSearchParams(window.location.search).get('host') === '1' ? 'host' : 'guest',
-  };
+  const dexLobbyMatch = window.location.pathname.match(
+    /^\/dex\/([A-Za-z0-9_-]+)\/lobby\/([A-Za-z0-9]+)$/
+  );
+  if (dexLobbyMatch) {
+    return {
+      view: 'lobby',
+      dexId: dexLobbyMatch[1],
+      lobbyCode: dexLobbyMatch[2],
+      mode: new URLSearchParams(window.location.search).get('host') === '1' ? 'host' : 'guest',
+    };
+  }
+
+  const joinMatch = window.location.pathname.match(/^\/dex\/([A-Za-z0-9_-]+)\/join$/);
+  if (joinMatch) {
+    return { view: 'dex', dexId: joinMatch[1], autoJoinPrompt: true };
+  }
+
+  const dexMatch = window.location.pathname.match(/^\/dex\/([A-Za-z0-9_-]+)$/);
+  if (dexMatch) {
+    return { view: 'dex', dexId: dexMatch[1] };
+  }
+
+  return { view: 'home' };
 }
 
 function navigate(path) {
@@ -34,28 +47,16 @@ export default function App() {
   }, []);
 
   const { user, loading: authLoading } = useAuth();
-  const { entries, loading: dexLoading, error: dexError } = useDex();
-  const isAdmin = useIsAdmin(user);
-
-  const [selected, setSelected] = useState(null);
-  const [editing, setEditing] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
 
-  const canManageSelected = !!selected && !!user && (isAdmin || selected.createdBy === user.uid);
-
-  function handleCreateLobby() {
-    const code = generateLobbyCode();
-    navigate(`/lobby/${code}?host=1`);
-  }
-
-  if (route) {
+  if (route.view === 'lobby') {
     return (
       <LobbyPage
-        key={`${route.mode}-${route.lobbyCode}`}
+        key={`${route.mode}-${route.dexId}-${route.lobbyCode}`}
         mode={route.mode}
+        dexId={route.dexId}
         lobbyCode={route.lobbyCode}
-        onLeave={() => navigate('/')}
+        onLeave={() => navigate(`/dex/${route.dexId}`)}
       />
     );
   }
@@ -65,48 +66,28 @@ export default function App() {
       <Navbar
         user={user}
         onOpenAuth={() => setShowAuth(true)}
-        onOpenAdd={() => setShowAdd(true)}
-        onCreateLobby={handleCreateLobby}
+        onGoHome={() => navigate('/')}
       />
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {dexError ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-red-300 bg-red-50 py-20 text-center">
-            <p className="text-sm font-semibold text-red-600">Couldn't load the dex.</p>
-            <p className="mt-1 max-w-xs text-xs text-red-400">{dexError}</p>
-          </div>
-        ) : authLoading || dexLoading ? (
-          <div className="flex justify-center py-20 text-sm font-semibold text-zinc-400">
-            Loading dex…
-          </div>
+        {authLoading ? (
+          <div className="flex justify-center py-20 text-sm font-semibold text-zinc-400">Loading…</div>
+        ) : route.view === 'dex' ? (
+          <DexView
+            key={route.dexId}
+            dexId={route.dexId}
+            user={user}
+            autoJoinPrompt={route.autoJoinPrompt}
+            onBack={() => navigate('/')}
+            onOpenAuth={() => setShowAuth(true)}
+            onOpenLobby={(code, host) => navigate(`/dex/${route.dexId}/lobby/${code}${host ? '?host=1' : ''}`)}
+          />
         ) : (
-          <PokedexGrid entries={entries} onSelect={setSelected} />
+          <DexList user={user} onOpenDex={(id) => navigate(`/dex/${id}`)} onOpenAuth={() => setShowAuth(true)} />
         )}
       </main>
 
-      {selected && (
-        <MengModal
-          meng={selected}
-          canManage={canManageSelected}
-          onClose={() => setSelected(null)}
-          onEdit={() => {
-            setEditing(selected);
-            setSelected(null);
-          }}
-        />
-      )}
-
-      {showAuth && (
-        <AuthModal onClose={() => setShowAuth(false)} />
-      )}
-
-      {showAdd && user && (
-        <MengForm user={user} onClose={() => setShowAdd(false)} />
-      )}
-
-      {editing && user && (
-        <MengForm user={user} entry={editing} onClose={() => setEditing(null)} />
-      )}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </div>
   );
 }

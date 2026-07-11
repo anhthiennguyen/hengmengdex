@@ -15,7 +15,7 @@ export default function PokedexGrid({ entries, onSelect }) {
           key={entry.id}
           type="button"
           onClick={() => onSelect(entry)}
-          className="group flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:border-royal-300 hover:shadow-md"
+          className="group flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--dex-accent-300)] hover:shadow-md"
         >
           <img
             src={entry.imageUrl}
