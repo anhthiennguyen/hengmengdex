@@ -2,27 +2,14 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useMyDexes } from '../hooks/useMyDexes';
 import DexForm from './DexForm';
+import Landing from './Landing';
 
 export default function DexList({ user, onOpenDex, onOpenAuth }) {
   const { dexes, loading, error } = useMyDexes(user);
   const [showCreate, setShowCreate] = useState(false);
 
   if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-white/60 py-20 text-center">
-        <p className="text-sm font-semibold text-zinc-500">Log in to see your dexes.</p>
-        <p className="mt-1 max-w-xs text-xs text-zinc-400">
-          Or open a dex link someone shared with you to browse it as a guest.
-        </p>
-        <button
-          type="button"
-          onClick={onOpenAuth}
-          className="mt-4 rounded-lg bg-[var(--dex-accent-600)] px-4 py-2 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)]"
-        >
-          Log In / Sign Up
-        </button>
-      </div>
-    );
+    return <Landing onOpenAuth={onOpenAuth} />;
   }
 
   return (
