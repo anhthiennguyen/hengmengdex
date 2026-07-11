@@ -34,7 +34,7 @@ async function fetchCardPool(dexId) {
       description: data.description,
       imageUrl: data.imageUrl,
       rules: data.rules || [],
-      ...(cardType === 'meng' ? { hp: data.hp, attack: data.attack } : {}),
+      ...(cardType === 'meng' ? { hp: data.hp, attack: data.attack, type: data.type || 'normal' } : {}),
     };
   });
 }

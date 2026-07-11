@@ -3,6 +3,7 @@ import { X, Trash2, Pencil, Loader2, Sparkles } from 'lucide-react';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { summarizeRules } from '../lib/ruleSummary';
+import TypeBadge from './TypeBadge';
 
 const CARD_TYPE_LABELS = { meng: 'Pokemon', trainer: 'Trainer' };
 
@@ -45,11 +46,12 @@ export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
           />
         </div>
         <div className="p-6">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-extrabold capitalize text-zinc-900">{meng.name}</h2>
             <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
               {CARD_TYPE_LABELS[meng.cardType] || 'Pokemon'}
             </span>
+            {typeof meng.type === 'string' && <TypeBadge type={meng.type} />}
           </div>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">{meng.description}</p>
 

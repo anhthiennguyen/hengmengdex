@@ -1,5 +1,6 @@
 import { Sparkles, Wand2 } from 'lucide-react';
 import { summarizeRules } from '../lib/ruleSummary';
+import TypeBadge from '../components/TypeBadge';
 
 export default function MengCardTile({ card, onClick, disabled, selected, showHp }) {
   const cardType = card.cardType || 'meng';
@@ -48,6 +49,7 @@ export default function MengCardTile({ card, onClick, disabled, selected, showHp
         {card.name}
         {summaries.length > 0 && <Sparkles size={10} className="shrink-0 text-[var(--dex-accent-500)]" />}
       </span>
+      {typeof card.type === 'string' && <TypeBadge type={card.type} />}
       <div className="flex gap-2 text-[10px] font-semibold text-zinc-500">
         <span>HP {showHp ? card.currentHp ?? card.hp : card.hp}</span>
         <span>ATK {card.attack}</span>

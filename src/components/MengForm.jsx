@@ -4,6 +4,7 @@ import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/fi
 import { db } from '../lib/firebase';
 import { resizeImageToDataUrl } from '../lib/resizeImage';
 import { validateRules } from '../lib/ruleValidation';
+import { POKEMON_TYPES } from '../lib/pokemonTypes';
 import RuleBuilder from './RuleBuilder';
 
 // Firestore caps documents at 1MB; a resized 240px JPEG is normally a few
@@ -23,6 +24,7 @@ export default function MengForm({ user, dex, entry, onClose }) {
   const [description, setDescription] = useState(entry?.description ?? '');
   const [hp, setHp] = useState(entry?.hp != null ? String(entry.hp) : '');
   const [attack, setAttack] = useState(entry?.attack != null ? String(entry.attack) : '');
+  const [pokemonType, setPokemonType] = useState(entry?.type ?? 'normal');
   const [rules, setRules] = useState(entry?.rules ?? []);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(entry?.imageUrl ?? null);
@@ -81,7 +83,7 @@ export default function MengForm({ user, dex, entry, onClose }) {
         description: description.trim(),
         imageUrl,
         rules,
-        ...(isMeng ? { hp: parseInt(hp, 10), attack: parseInt(attack, 10) } : {}),
+        ...(isMeng ? { hp: parseInt(hp, 10), attack: parseInt(attack, 10), type: pokemonType } : {}),
       };
 
       if (isEditing) {
@@ -174,36 +176,53 @@ export default function MengForm({ user, dex, entry, onClose }) {
           </div>
 
           {isMeng && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-zinc-600">HP (max {dex.maxHp})</label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  max={dex.maxHp}
-                  step="1"
-                  value={hp}
-                  onChange={(e) => setHp(e.target.value)}
-                  placeholder="35"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
-                />
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-zinc-600">HP (max {dex.maxHp})</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    max={dex.maxHp}
+                    step="1"
+                    value={hp}
+                    onChange={(e) => setHp(e.target.value)}
+                    placeholder="35"
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-zinc-600">Attack (max {dex.maxAttack})</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    max={dex.maxAttack}
+                    step="1"
+                    value={attack}
+                    onChange={(e) => setAttack(e.target.value)}
+                    placeholder="55"
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="mb-1 block text-xs font-semibold text-zinc-600">Attack (max {dex.maxAttack})</label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  max={dex.maxAttack}
-                  step="1"
-                  value={attack}
-                  onChange={(e) => setAttack(e.target.value)}
-                  placeholder="55"
+                <label className="mb-1 block text-xs font-semibold text-zinc-600">Type</label>
+                <select
+                  value={pokemonType}
+                  onChange={(e) => setPokemonType(e.target.value)}
                   className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
-                />
+                >
+                  {POKEMON_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
+            </>
           )}
 
           <div>

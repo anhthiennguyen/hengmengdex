@@ -83,6 +83,14 @@ service cloud.firestore {
                  (rules.size() < 3 || isValidRule(rules[2]));
         }
 
+        function isValidPokemonType(t) {
+          return t in [
+            'normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting',
+            'poison', 'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost',
+            'dragon', 'dark', 'steel', 'fairy'
+          ];
+        }
+
         function isValidCardPayload() {
           let d = request.resource.data;
           let baseOk = d.name is string && d.name.size() > 0 && d.name.size() <= 60 &&
@@ -91,8 +99,8 @@ service cloud.firestore {
                        d.cardType in ['meng', 'trainer'] &&
                        isValidRules(d.get('rules', []));
           return baseOk && (
-            (d.cardType == 'meng' && withinCaps()) ||
-            (d.cardType != 'meng' && !('hp' in d) && !('attack' in d))
+            (d.cardType == 'meng' && withinCaps() && isValidPokemonType(d.type)) ||
+            (d.cardType != 'meng' && !('hp' in d) && !('attack' in d) && !('type' in d))
           );
         }
 
