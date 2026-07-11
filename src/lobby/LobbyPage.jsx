@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Copy, Check, Loader2, LogOut } from 'lucide-react';
+import { Copy, Check, Loader2, LogOut, X } from 'lucide-react';
 import { useLobbyEngine } from './useLobbyEngine';
 import { useDex } from '../hooks/useDex';
 import DexThemeProvider from '../components/DexThemeProvider';
@@ -11,6 +11,7 @@ export default function LobbyPage({ mode, lobbyCode, dexId, onLeave }) {
   const { snapshot, engine } = useLobbyEngine(mode, lobbyCode, dexId);
   const { dex } = useDex(dexId);
   const [copied, setCopied] = useState(false);
+  const [dismissedReason, setDismissedReason] = useState(null);
 
   const shareLink = useMemo(
     () => `${window.location.origin}/dex/${dexId}/lobby/${lobbyCode}`,
@@ -85,6 +86,20 @@ export default function LobbyPage({ mode, lobbyCode, dexId, onLeave }) {
           {copied ? 'Copied' : 'Copy Link'}
         </button>
       </div>
+
+      {state.lastAbortReason && state.lastAbortReason !== dismissedReason && (
+        <div className="mb-4 flex items-start justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+          <p className="text-xs font-semibold text-red-700">{state.lastAbortReason}</p>
+          <button
+            type="button"
+            onClick={() => setDismissedReason(state.lastAbortReason)}
+            className="shrink-0 rounded-full p-0.5 text-red-400 hover:bg-red-100 hover:text-red-600"
+            aria-label="Dismiss"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <Roster
         roster={state.roster}

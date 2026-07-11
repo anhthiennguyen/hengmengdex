@@ -4,6 +4,7 @@ import { useDex } from '../hooks/useDex';
 import { useMembership } from '../hooks/useMembership';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { generateLobbyCode } from '../lobby/lobbyEngine';
+import { checkPoolLegality, MIN_POOL_SIZE, MIN_BASICS } from '../lobby/deckBuilder';
 import PokedexGrid from './PokedexGrid';
 import MengModal from './MengModal';
 import MengForm from './MengForm';
@@ -23,6 +24,10 @@ export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAut
   const [showEditDex, setShowEditDex] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showBattleRequirements, setShowBattleRequirements] = useState(false);
+
+  const poolLegality = useMemo(() => checkPoolLegality(entries), [entries]);
+  const basicCount = poolLegality.cards.filter((c) => c.cardType === 'meng' && c.stage === 'basic').length;
 
   useEffect(() => {
     if (autoJoinPrompt && !loading && !isMember && !isAdmin) {
@@ -42,6 +47,10 @@ export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAut
   }
 
   function handleCreateLobby() {
+    if (!poolLegality.legal) {
+      setShowBattleRequirements(true);
+      return;
+    }
     onOpenLobby(generateLobbyCode(), true);
   }
 
@@ -175,6 +184,33 @@ export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAut
           onClose={() => setShowJoinModal(false)}
           onOpenAuth={onOpenAuth}
         />
+      )}
+
+      {showBattleRequirements && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowBattleRequirements(false); }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+            <Swords className="mx-auto text-[var(--dex-accent-500)]" size={28} />
+            <h2 className="mt-3 text-lg font-bold text-zinc-900">Not Ready to Battle Yet</h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              This dex needs at least {MIN_POOL_SIZE} battle-ready Pokemon/Trainer cards (with attacks, evolution
+              stage, etc. filled in), including {MIN_BASICS}+ Basic Pokemon, before a battle can start.
+            </p>
+            <p className="mt-2 text-xs font-semibold text-zinc-500">
+              Currently: {poolLegality.cards.length}/{MIN_POOL_SIZE} battle-ready cards, {basicCount}/{MIN_BASICS} Basic
+              Pokemon.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowBattleRequirements(false)}
+              className="mt-4 rounded-lg bg-[var(--dex-accent-600)] px-4 py-2 text-sm font-bold text-white hover:bg-[var(--dex-accent-700)]"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
       )}
     </div>
     </DexThemeProvider>

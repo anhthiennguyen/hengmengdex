@@ -4,7 +4,7 @@ import { db } from '../lib/firebase';
 import { resolveRules, startTurn } from './effectEngine';
 import { resolveKnockOut, resolveAttack } from './combatEngine';
 import { runCheckup } from './pokemonCheckup';
-import { buildMatch } from './deckBuilder';
+import { buildMatch, MIN_POOL_SIZE, MIN_BASICS } from './deckBuilder';
 import { redactStateFor } from './battleRedaction';
 
 // PeerJS's default cloud broker (0.peerjs.com) is shared across every app
@@ -69,7 +69,7 @@ class LobbyEngine {
     // Host-authoritative state. Guests hold a mirrored read-only copy that
     // arrives pre-redacted (from the host's point of view of them) — a
     // guest never has access to the raw, un-redacted state at all.
-    this.state = { roster: [], battles: {} };
+    this.state = { roster: [], battles: {}, lastAbortReason: null };
   }
 
   subscribe(cb) {
@@ -275,6 +275,7 @@ class LobbyEngine {
           names: { [challenger.peerId]: challenger.name, [target.peerId]: target.name },
           challenger: challenger.peerId,
         };
+        this.state.lastAbortReason = null;
         this._broadcast();
         break;
       }
@@ -296,7 +297,7 @@ class LobbyEngine {
           if (!match.legal) {
             delete this.state.battles[intent.battleId];
             this.state.lastAbortReason =
-              'This Dex needs at least 20 cards, including 2+ Basic Pokemon, to start a real battle.';
+              `This Dex needs at least ${MIN_POOL_SIZE} battle-ready cards (with attacks/stage set), including ${MIN_BASICS}+ Basic Pokemon, to start a battle.`;
             this._broadcast();
             return;
           }
@@ -324,9 +325,12 @@ class LobbyEngine {
             log: ['Decks dealt! Choose your Active and Bench Pokemon.', ...match.log],
             winner: null,
           });
+          this.state.lastAbortReason = null;
           this._broadcast();
-        } catch {
+        } catch (err) {
+          console.error('Failed to start battle:', err);
           delete this.state.battles[intent.battleId];
+          this.state.lastAbortReason = 'Something went wrong starting the battle. Please try again.';
           this._broadcast();
         }
         break;

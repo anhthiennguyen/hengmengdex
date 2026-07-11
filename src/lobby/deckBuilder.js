@@ -5,7 +5,13 @@
 
 import { getEnergyTypeInfo } from '../lib/pokemonTypes';
 
-export const MIN_POOL_SIZE = 20;
+// Absolute floor: below this, even graceful scaling can't produce a
+// non-degenerate game (each player needs at least 1 Basic and a couple of
+// cards to draw). Above the floor, deck/hand/Prize sizes scale down
+// smoothly toward the real 6-Prize/7-card targets rather than hard-gating
+// at the real game's scale, since a personal/casual Dex may only have a
+// handful of cards.
+export const MIN_POOL_SIZE = 6;
 export const MIN_BASICS = 2;
 export const STARTING_HAND_SIZE = 7;
 export const PRIZE_COUNT = 6;
@@ -99,6 +105,17 @@ function synthesizeEnergy(mengCards, energyCount) {
   return energyCards;
 }
 
+// Scales Prize/hand sizes down for small decks instead of always using the
+// real game's fixed 6/7, while always reserving at least 1 card in the
+// deck itself so turn 1's mandatory draw doesn't instantly deck the player
+// out. Reaches the real 6 Prizes once a deck is big enough to support it.
+function scaledZones(totalCards) {
+  const prizeCount = Math.min(PRIZE_COUNT, Math.max(1, Math.floor(totalCards / 3)));
+  const reserveForDraw = totalCards > prizeCount ? 1 : 0;
+  const handSize = Math.max(1, Math.min(STARTING_HAND_SIZE, totalCards - prizeCount - reserveForDraw));
+  return { prizeCount, handSize };
+}
+
 function buildDeckForPlayer(cards) {
   const mengCards = cards.filter((c) => c.cardType === 'meng');
   const energyCount = Math.ceil((cards.length * 2) / 3);
@@ -161,14 +178,17 @@ export function buildMatch(pool, players) {
   const firstPlayer = Math.random() < 0.5 ? playerA : playerB;
   const prizePiles = {};
   const hands = {};
+  const handSizes = {};
   const mulliganCounts = { [playerA]: 0, [playerB]: 0 };
   const log = [];
 
   for (const peerId of players) {
-    prizePiles[peerId] = decks[peerId].splice(0, PRIZE_COUNT);
+    const { prizeCount, handSize } = scaledZones(decks[peerId].length);
+    handSizes[peerId] = handSize;
+    prizePiles[peerId] = decks[peerId].splice(0, prizeCount);
   }
   for (const peerId of players) {
-    hands[peerId] = decks[peerId].splice(0, STARTING_HAND_SIZE);
+    hands[peerId] = decks[peerId].splice(0, handSizes[peerId]);
   }
 
   for (const peerId of players) {
@@ -180,7 +200,7 @@ export function buildMatch(pool, players) {
       const revealed = hands[peerId].map((c) => c.name).join(', ') || 'an empty hand';
       log.push(`A player had no Basic Pokemon and mulliganed (revealed: ${revealed}).`);
       decks[peerId] = shuffle([...decks[peerId], ...hands[peerId]]);
-      hands[peerId] = decks[peerId].splice(0, STARTING_HAND_SIZE);
+      hands[peerId] = decks[peerId].splice(0, handSizes[peerId]);
       mulliganCounts[peerId] += 1;
       attempts += 1;
     }
