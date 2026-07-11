@@ -10,7 +10,7 @@ export const MENG_TRIGGERS = [
   { value: 'on_hit', label: 'This Card Is Hit' },
 ];
 
-export const PLAY_TRIGGER = { value: 'on_play', label: 'When Played' };
+export const PLAY_TRIGGER = { value: 'on_play', label: 'Played' };
 
 export const CONDITION_FIELDS = [
   { value: 'hp_below_percent', label: "This card's HP is below" },
