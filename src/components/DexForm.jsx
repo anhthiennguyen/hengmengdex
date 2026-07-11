@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { collection, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 const MAX_CAP = 999999;
@@ -42,9 +42,13 @@ export default function DexForm({ user, dex, onClose, onCreated }) {
           maxAttack: parseInt(maxAttack, 10),
         });
       } else {
-        const batch = writeBatch(db);
+        // Sequential, not batched: the membership doc's create rule has to
+        // get() the dex doc to confirm ownership, and within one atomic
+        // batch that get() can't see a doc being created in the same batch
+        // (it still reads as "doesn't exist"), so a batched write here
+        // always fails with permission-denied. The dex must exist first.
         const dexRef = doc(collection(db, 'dexes'));
-        batch.set(dexRef, {
+        await setDoc(dexRef, {
           name: name.trim(),
           color,
           maxHp: parseInt(maxHp, 10),
@@ -52,13 +56,17 @@ export default function DexForm({ user, dex, onClose, onCreated }) {
           ownerId: user.uid,
           createdAt: serverTimestamp(),
         });
-        batch.set(doc(db, 'memberships', `${user.uid}_${dexRef.id}`), {
-          uid: user.uid,
-          dexId: dexRef.id,
-          role: 'owner',
-          joinedAt: serverTimestamp(),
-        });
-        await batch.commit();
+        try {
+          await setDoc(doc(db, 'memberships', `${user.uid}_${dexRef.id}`), {
+            uid: user.uid,
+            dexId: dexRef.id,
+            role: 'owner',
+            joinedAt: serverTimestamp(),
+          });
+        } catch (membershipErr) {
+          await deleteDoc(dexRef).catch(() => {});
+          throw membershipErr;
+        }
         onCreated?.(dexRef.id);
       }
       onClose();
