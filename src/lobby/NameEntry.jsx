@@ -22,7 +22,7 @@ export default function NameEntry({ onSubmit }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={24}
-          placeholder="Ash"
+          placeholder="Ansh"
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
         />
         <button
