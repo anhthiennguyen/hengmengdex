@@ -3,22 +3,34 @@ import { X, ImagePlus, Loader2 } from 'lucide-react';
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { resizeImageToDataUrl } from '../lib/resizeImage';
+import { validateRules } from '../lib/ruleValidation';
+import RuleBuilder from './RuleBuilder';
 
 // Firestore caps documents at 1MB; a resized 240px JPEG is normally a few
 // dozen KB, so this only trips on pathological inputs.
 const MAX_IMAGE_DATA_URL_LENGTH = 700_000;
 
+const CARD_TYPES = [
+  { value: 'meng', label: 'Meng' },
+  { value: 'item', label: 'Item' },
+  { value: 'trainer', label: 'Trainer' },
+];
+
 export default function MengForm({ user, dex, entry, onClose }) {
   const isEditing = !!entry;
 
+  const [cardType, setCardType] = useState(entry?.cardType ?? 'meng');
   const [name, setName] = useState(entry?.name ?? '');
   const [description, setDescription] = useState(entry?.description ?? '');
   const [hp, setHp] = useState(entry?.hp != null ? String(entry.hp) : '');
   const [attack, setAttack] = useState(entry?.attack != null ? String(entry.attack) : '');
+  const [rules, setRules] = useState(entry?.rules ?? []);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(entry?.imageUrl ?? null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const isMeng = cardType === 'meng';
 
   function handleFileChange(e) {
     const f = e.target.files?.[0] ?? null;
@@ -34,12 +46,21 @@ export default function MengForm({ user, dex, entry, onClose }) {
       setError('Name, description, and an image are all required.');
       return;
     }
-    if (!/^\d+$/.test(hp) || !/^\d+$/.test(attack)) {
-      setError('HP and Attack must both be whole numbers.');
-      return;
+
+    if (isMeng) {
+      if (!/^\d+$/.test(hp) || !/^\d+$/.test(attack)) {
+        setError('HP and Attack must both be whole numbers.');
+        return;
+      }
+      if (parseInt(hp, 10) > dex.maxHp || parseInt(attack, 10) > dex.maxAttack) {
+        setError(`HP and Attack can't exceed this dex's caps (${dex.maxHp} HP / ${dex.maxAttack} Attack).`);
+        return;
+      }
     }
-    if (parseInt(hp, 10) > dex.maxHp || parseInt(attack, 10) > dex.maxAttack) {
-      setError(`HP and Attack can't exceed this dex's caps (${dex.maxHp} HP / ${dex.maxAttack} Attack).`);
+
+    const rulesCheck = validateRules(rules, cardType);
+    if (!rulesCheck.valid) {
+      setError(rulesCheck.error);
       return;
     }
 
@@ -56,11 +77,12 @@ export default function MengForm({ user, dex, entry, onClose }) {
       }
 
       const fields = {
+        cardType,
         name: name.trim(),
         description: description.trim(),
-        hp: parseInt(hp, 10),
-        attack: parseInt(attack, 10),
         imageUrl,
+        rules,
+        ...(isMeng ? { hp: parseInt(hp, 10), attack: parseInt(attack, 10) } : {}),
       };
 
       if (isEditing) {
@@ -75,7 +97,7 @@ export default function MengForm({ user, dex, entry, onClose }) {
 
       onClose();
     } catch (err) {
-      setError(err.message || `Failed to ${isEditing ? 'save' : 'add'} Meng. Please try again.`);
+      setError(err.message || `Failed to ${isEditing ? 'save' : 'add'} card. Please try again.`);
     } finally {
       setBusy(false);
     }
@@ -86,9 +108,9 @@ export default function MengForm({ user, dex, entry, onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-zinc-900">{isEditing ? 'Edit Meng' : 'Add Meng'}</h2>
+          <h2 className="text-lg font-bold text-zinc-900">{isEditing ? 'Edit Card' : 'Add Card'}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -100,6 +122,24 @@ export default function MengForm({ user, dex, entry, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} className="grid gap-3">
+          <div className="flex rounded-lg bg-zinc-100 p-1 text-xs font-semibold">
+            {CARD_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                disabled={isEditing}
+                onClick={() => setCardType(t.value)}
+                className={`flex-1 rounded-md py-1.5 transition disabled:cursor-not-allowed ${
+                  cardType === t.value
+                    ? 'bg-white text-[var(--dex-accent-600)] shadow'
+                    : 'text-zinc-500'
+                } ${isEditing ? 'opacity-60' : ''}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <label className="mx-auto flex h-28 w-28 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-zinc-400 hover:border-[var(--dex-accent-400)] hover:text-[var(--dex-accent-500)]">
             {preview ? (
               <img src={preview} alt="Preview" className="h-full w-full object-cover" />
@@ -134,35 +174,44 @@ export default function MengForm({ user, dex, entry, onClose }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-zinc-600">HP (max {dex.maxHp})</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                max={dex.maxHp}
-                step="1"
-                value={hp}
-                onChange={(e) => setHp(e.target.value)}
-                placeholder="35"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
-              />
+          {isMeng && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-zinc-600">HP (max {dex.maxHp})</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  max={dex.maxHp}
+                  step="1"
+                  value={hp}
+                  onChange={(e) => setHp(e.target.value)}
+                  placeholder="35"
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-zinc-600">Attack (max {dex.maxAttack})</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  max={dex.maxAttack}
+                  step="1"
+                  value={attack}
+                  onChange={(e) => setAttack(e.target.value)}
+                  placeholder="55"
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                />
+              </div>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-zinc-600">Attack (max {dex.maxAttack})</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                max={dex.maxAttack}
-                step="1"
-                value={attack}
-                onChange={(e) => setAttack(e.target.value)}
-                placeholder="55"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
-              />
-            </div>
+          )}
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-zinc-600">
+              {isMeng ? 'Ability (optional)' : 'Effect'}
+            </label>
+            <RuleBuilder rules={rules} onChange={setRules} cardType={cardType} />
           </div>
 
           {error && <p className="text-xs font-medium text-red-600">{error}</p>}

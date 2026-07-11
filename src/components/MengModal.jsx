@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { X, Trash2, Pencil, Loader2 } from 'lucide-react';
+import { X, Trash2, Pencil, Loader2, Sparkles } from 'lucide-react';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { summarizeRules } from '../lib/ruleSummary';
+
+const CARD_TYPE_LABELS = { meng: 'Meng', item: 'Item', trainer: 'Trainer' };
 
 export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
   const [confirming, setConfirming] = useState(false);
@@ -42,7 +45,12 @@ export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
           />
         </div>
         <div className="p-6">
-          <h2 className="text-xl font-extrabold capitalize text-zinc-900">{meng.name}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-extrabold capitalize text-zinc-900">{meng.name}</h2>
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+              {CARD_TYPE_LABELS[meng.cardType] || 'Meng'}
+            </span>
+          </div>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">{meng.description}</p>
 
           {(typeof meng.hp === 'number' || typeof meng.attack === 'number') && (
@@ -55,6 +63,20 @@ export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
                 <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--dex-accent-500)]">Attack</div>
                 <div className="text-lg font-extrabold text-[var(--dex-accent-700)]">{meng.attack ?? '—'}</div>
               </div>
+            </div>
+          )}
+
+          {meng.rules?.length > 0 && (
+            <div className="mt-4 rounded-lg border border-[var(--dex-accent-200)] bg-[var(--dex-accent-50)] p-3">
+              <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--dex-accent-600)]">
+                <Sparkles size={12} />
+                {meng.cardType === 'meng' ? 'Ability' : 'Effect'}
+              </div>
+              <ul className="grid gap-1 text-xs text-[var(--dex-accent-800)]">
+                {summarizeRules(meng.rules).map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
             </div>
           )}
 

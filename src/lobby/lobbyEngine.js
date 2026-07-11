@@ -1,6 +1,7 @@
 import Peer from 'peerjs';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { resolveRules, startTurn } from './effectEngine';
 
 // PeerJS's default cloud broker (0.peerjs.com) is shared across every app
 // using the library, so peer IDs are namespaced to avoid colliding with
@@ -25,13 +26,15 @@ async function fetchCardPool(dexId) {
   const snap = await getDocs(collection(db, 'dexes', dexId, 'meng'));
   return snap.docs.map((d) => {
     const data = d.data();
+    const cardType = data.cardType || 'meng';
     return {
       id: d.id,
+      cardType,
       name: data.name,
       description: data.description,
       imageUrl: data.imageUrl,
-      hp: data.hp,
-      attack: data.attack,
+      rules: data.rules || [],
+      ...(cardType === 'meng' ? { hp: data.hp, attack: data.attack } : {}),
     };
   });
 }
@@ -180,6 +183,18 @@ class LobbyEngine {
     this.send({ type: 'attack', battleId });
   }
 
+  playItem(battleId, cardId) {
+    this.send({ type: 'play_item', battleId, cardId });
+  }
+
+  playTrainer(battleId, cardId) {
+    this.send({ type: 'play_trainer', battleId, cardId });
+  }
+
+  endTurn(battleId) {
+    this.send({ type: 'end_turn', battleId });
+  }
+
   // ---- host-authoritative reducer ----
 
   async _applyIntent(fromPeerId, intent) {
@@ -271,17 +286,43 @@ class LobbyEngine {
         if (cardIdx === -1) return;
 
         const [card] = battle.pool.splice(cardIdx, 1);
-        battle.teams[fromPeerId].push({ ...card, maxHp: card.hp, currentHp: card.hp, alive: true });
+        const drafted =
+          card.cardType === 'meng'
+            ? { ...card, maxHp: card.hp, currentHp: card.hp, alive: true, statuses: [] }
+            : { ...card, played: false };
+        battle.teams[fromPeerId].push(drafted);
 
         const [pA, pB] = battle.players;
         const done =
           battle.teams[pA].length >= battle.deckSize && battle.teams[pB].length >= battle.deckSize;
 
         if (done || battle.pool.length === 0) {
-          battle.phase = 'battle';
-          battle.turn = battle.firstPicker;
-          battle.active = { [pA]: 0, [pB]: 0 };
+          const firstMeng = (team) => team.findIndex((c) => c.cardType === 'meng' && c.alive);
+          const idxA = firstMeng(battle.teams[pA]);
+          const idxB = firstMeng(battle.teams[pB]);
+
+          battle.trainerUsed = { [pA]: false, [pB]: false };
           battle.log = ['The battle begins!'];
+
+          if (idxA === -1 || idxB === -1) {
+            battle.phase = 'finished';
+            if (idxA === -1 && idxB === -1) {
+              battle.winner = null;
+              battle.log.push("Neither team drafted a battle-ready Meng — it's a draw.");
+            } else {
+              battle.winner = idxA === -1 ? pB : pA;
+              battle.log.push(`${battle.names[battle.winner]} wins — the opponent has no battle-ready Meng!`);
+            }
+            this._broadcast();
+            break;
+          }
+
+          battle.active = { [pA]: idxA, [pB]: idxB };
+          const startCardA = battle.teams[pA][idxA];
+          const startCardB = battle.teams[pB][idxB];
+          battle.log.push(...resolveRules(startCardA.rules, 'on_enter', startCardA, startCardA.id));
+          battle.log.push(...resolveRules(startCardB.rules, 'on_enter', startCardB, startCardB.id));
+          battle.log.push(...startTurn(battle, battle.firstPicker));
         } else {
           battle.draftTurn = battle.draftTurn === pA ? pB : pA;
         }
@@ -294,11 +335,13 @@ class LobbyEngine {
         if (!battle || battle.phase !== 'battle' || battle.swapNeeded !== fromPeerId) return;
 
         const team = battle.teams[fromPeerId];
-        const idx = team.findIndex((c) => c.id === intent.cardId && c.alive);
+        const idx = team.findIndex((c) => c.id === intent.cardId && c.alive && c.cardType === 'meng');
         if (idx === -1) return;
 
         battle.active[fromPeerId] = idx;
         delete battle.swapNeeded;
+        const swappedInCard = team[idx];
+        battle.log.push(...resolveRules(swappedInCard.rules, 'on_enter', swappedInCard, swappedInCard.id));
         this._broadcast();
         break;
       }
@@ -313,13 +356,17 @@ class LobbyEngine {
         const defenderCard = battle.teams[defenderId][battle.active[defenderId]];
         if (!attackerCard || !defenderCard) return;
 
+        battle.log.push(...resolveRules(attackerCard.rules, 'on_attack', attackerCard, attackerCard.id));
+
         defenderCard.currentHp = Math.max(0, defenderCard.currentHp - attackerCard.attack);
         battle.log.push(`${attackerCard.name} hit ${defenderCard.name} for ${attackerCard.attack}.`);
+
+        battle.log.push(...resolveRules(defenderCard.rules, 'on_hit', defenderCard, defenderCard.id));
 
         if (defenderCard.currentHp === 0) {
           defenderCard.alive = false;
           battle.log.push(`${defenderCard.name} fainted!`);
-          const defenderTeamAlive = battle.teams[defenderId].some((c) => c.alive);
+          const defenderTeamAlive = battle.teams[defenderId].some((c) => c.cardType === 'meng' && c.alive);
           if (!defenderTeamAlive) {
             battle.phase = 'finished';
             battle.winner = fromPeerId;
@@ -328,9 +375,55 @@ class LobbyEngine {
             break;
           }
           battle.swapNeeded = defenderId;
+          // Don't fire on_turn_start/decay yet — the defender's active card
+          // just fainted, so there's no living card to apply those to. Turn
+          // is still handed to them; swap_pick's on_enter trigger covers the
+          // newly active card once they choose one. Per-turn allowances
+          // still reset, though, since it's a new turn for them either way.
+          battle.turn = defenderId;
+          if (battle.trainerUsed) battle.trainerUsed[defenderId] = false;
+        } else {
+          battle.log.push(...startTurn(battle, defenderId));
         }
+        this._broadcast();
+        break;
+      }
 
-        battle.turn = defenderId;
+      case 'play_item':
+      case 'play_trainer': {
+        const battle = this.state.battles[intent.battleId];
+        if (!battle || battle.phase !== 'battle' || battle.turn !== fromPeerId || battle.swapNeeded) return;
+
+        const expectedType = intent.type === 'play_item' ? 'item' : 'trainer';
+        if (expectedType === 'trainer' && battle.trainerUsed[fromPeerId]) return;
+
+        const team = battle.teams[fromPeerId];
+        const cardIdx = team.findIndex(
+          (c) => c.id === intent.cardId && c.cardType === expectedType && !c.played
+        );
+        if (cardIdx === -1) return;
+
+        const activeCard = team[battle.active[fromPeerId]];
+        if (!activeCard) return;
+
+        const playedCard = team[cardIdx];
+        playedCard.played = true;
+        if (expectedType === 'trainer') battle.trainerUsed[fromPeerId] = true;
+
+        battle.log.push(`${battle.names[fromPeerId]} played ${playedCard.name}.`);
+        battle.log.push(...resolveRules(playedCard.rules, 'on_play', activeCard, playedCard.id));
+        this._broadcast();
+        break;
+      }
+
+      case 'end_turn': {
+        const battle = this.state.battles[intent.battleId];
+        if (!battle || battle.phase !== 'battle' || battle.turn !== fromPeerId || battle.swapNeeded) return;
+
+        const [pA, pB] = battle.players;
+        const otherId = fromPeerId === pA ? pB : pA;
+        battle.log.push(`${battle.names[fromPeerId]} ends their turn.`);
+        battle.log.push(...startTurn(battle, otherId));
         this._broadcast();
         break;
       }

@@ -1,4 +1,4 @@
-import { Loader2, Swords, Trophy } from 'lucide-react';
+import { Loader2, Swords, Trophy, Flag } from 'lucide-react';
 import MengCardTile from './MengCardTile';
 
 export default function BattleView({ battle, myPeerId, engine, onClose }) {
@@ -61,6 +61,8 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
     const oppCard = battle.teams[opponentId][battle.active[opponentId]];
     const myTurn = battle.turn === myPeerId && !battle.swapNeeded;
     const needsMySwap = battle.swapNeeded === myPeerId;
+    const myHand = battle.teams[myPeerId].filter((c) => c.cardType !== 'meng' && !c.played);
+    const trainerUsed = !!battle.trainerUsed?.[myPeerId];
 
     return (
       <Overlay wide>
@@ -84,7 +86,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             </p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {battle.teams[myPeerId]
-                .filter((c) => c.alive)
+                .filter((c) => c.cardType === 'meng' && c.alive)
                 .map((card) => (
                   <MengCardTile
                     key={card.id}
@@ -96,19 +98,60 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             </div>
           </div>
         ) : (
-          <button
-            type="button"
-            disabled={!myTurn}
-            onClick={() => engine.attack(battle.battleId)}
-            className="mx-auto mt-5 flex items-center justify-center gap-2 rounded-lg bg-[var(--dex-accent-600)] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Swords size={16} />
-            {myTurn ? 'Attack' : `Waiting for ${opponentName}…`}
-          </button>
+          <>
+            {myHand.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-1.5 text-xs font-bold text-zinc-500">Your hand</p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {myHand.map((card) => {
+                    const isTrainer = card.cardType === 'trainer';
+                    const cardDisabled = !myTurn || (isTrainer && trainerUsed);
+                    return (
+                      <MengCardTile
+                        key={card.id}
+                        card={card}
+                        disabled={cardDisabled}
+                        onClick={
+                          cardDisabled
+                            ? undefined
+                            : () =>
+                                isTrainer
+                                  ? engine.playTrainer(battle.battleId, card.id)
+                                  : engine.playItem(battle.battleId, card.id)
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mx-auto mt-5 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                disabled={!myTurn}
+                onClick={() => engine.attack(battle.battleId)}
+                className="flex items-center justify-center gap-2 rounded-lg bg-[var(--dex-accent-600)] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Swords size={16} />
+                {myTurn ? 'Attack' : `Waiting for ${opponentName}…`}
+              </button>
+              {myTurn && (
+                <button
+                  type="button"
+                  onClick={() => engine.endTurn(battle.battleId)}
+                  className="flex items-center justify-center gap-2 rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                >
+                  <Flag size={15} />
+                  Pass
+                </button>
+              )}
+            </div>
+          </>
         )}
 
-        <div className="mt-5 max-h-28 overflow-y-auto rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
-          {battle.log.slice(-8).map((line, i) => (
+        <div className="mt-5 max-h-32 overflow-y-auto rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
+          {battle.log.slice(-12).map((line, i) => (
             <div key={i}>{line}</div>
           ))}
         </div>
@@ -117,13 +160,14 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
   }
 
   if (battle.phase === 'finished') {
+    const isDraw = battle.winner === null;
     const iWon = battle.winner === myPeerId;
     return (
       <Overlay>
         <div className="flex flex-col items-center gap-2 py-4 text-center">
           <Trophy className="text-[var(--dex-accent-500)]" size={32} />
           <h2 className="text-lg font-bold text-zinc-900">
-            {iWon ? 'You won!' : `${battle.names[battle.winner]} wins!`}
+            {isDraw ? "It's a draw!" : iWon ? 'You won!' : `${battle.names[battle.winner]} wins!`}
           </h2>
           <button
             type="button"

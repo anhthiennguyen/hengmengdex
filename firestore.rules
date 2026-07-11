@@ -57,17 +57,57 @@ service cloud.firestore {
                  d.attack is int && d.attack >= 0 && d.attack <= dex().maxAttack;
         }
 
+        function isValidCondition(c) {
+          return c == null ||
+            (c.field in ['hp_below_percent', 'hp_above_percent'] &&
+             c.value is int && c.value >= 1 && c.value <= 99);
+        }
+        function isValidEffect(e) {
+          return e.action in ['add_hp', 'subtract_hp', 'add_attack', 'subtract_attack'] &&
+                 e.amount is int && e.amount >= 1 && e.amount <= 9999 &&
+                 (e.duration == 'permanent' ||
+                  (e.duration is int && e.duration >= 1 && e.duration <= 99));
+        }
+        function isValidRule(r) {
+          return r.trigger in ['on_enter', 'on_turn_start', 'on_attack', 'on_hit', 'on_play'] &&
+                 isValidCondition(r.get('condition', null)) &&
+                 r.effects is list && r.effects.size() >= 1 && r.effects.size() <= 3 &&
+                 isValidEffect(r.effects[0]) &&
+                 (r.effects.size() < 2 || isValidEffect(r.effects[1])) &&
+                 (r.effects.size() < 3 || isValidEffect(r.effects[2]));
+        }
+        function isValidRules(rules) {
+          return rules is list && rules.size() <= 3 &&
+                 (rules.size() < 1 || isValidRule(rules[0])) &&
+                 (rules.size() < 2 || isValidRule(rules[1])) &&
+                 (rules.size() < 3 || isValidRule(rules[2]));
+        }
+
+        function isValidCardPayload() {
+          let d = request.resource.data;
+          let baseOk = d.name is string && d.name.size() > 0 && d.name.size() <= 60 &&
+                       d.description is string &&
+                       d.imageUrl is string &&
+                       d.cardType in ['meng', 'item', 'trainer'] &&
+                       isValidRules(d.get('rules', []));
+          return baseOk && (
+            (d.cardType == 'meng' && withinCaps()) ||
+            (d.cardType != 'meng' && !('hp' in d) && !('attack' in d))
+          );
+        }
+
         allow read: if true;
 
         allow create: if isSignedIn() &&
           (isDexMember(dexId) || isDexAdmin()) &&
           request.resource.data.createdBy == request.auth.uid &&
-          withinCaps();
+          isValidCardPayload();
 
         allow update: if isSignedIn() &&
           (request.auth.uid == resource.data.createdBy || isDexAdmin()) &&
           request.resource.data.createdBy == resource.data.createdBy &&
-          withinCaps();
+          request.resource.data.get('cardType', 'meng') == resource.data.get('cardType', 'meng') &&
+          isValidCardPayload();
 
         allow delete: if isSignedIn() &&
           (request.auth.uid == resource.data.createdBy || isDexAdmin());
