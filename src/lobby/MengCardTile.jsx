@@ -1,8 +1,5 @@
-import { Sparkles, Package, Wand2 } from 'lucide-react';
+import { Sparkles, Wand2 } from 'lucide-react';
 import { summarizeRules } from '../lib/ruleSummary';
-
-const TYPE_ICON = { item: Package, trainer: Wand2 };
-const TYPE_LABEL = { item: 'Item', trainer: 'Trainer' };
 
 export default function MengCardTile({ card, onClick, disabled, selected, showHp }) {
   const cardType = card.cardType || 'meng';
@@ -18,7 +15,6 @@ export default function MengCardTile({ card, onClick, disabled, selected, showHp
   } ${onClick && !disabled ? 'cursor-pointer' : 'cursor-default'}`;
 
   if (cardType !== 'meng') {
-    const Icon = TYPE_ICON[cardType] || Package;
     return (
       <button
         type="button"
@@ -29,11 +25,11 @@ export default function MengCardTile({ card, onClick, disabled, selected, showHp
       >
         <img src={card.imageUrl} alt={card.name} className="h-14 w-14 rounded-lg object-contain" />
         <span className="flex max-w-full items-center gap-1 truncate text-xs font-bold capitalize text-zinc-800">
-          <Icon size={11} className="shrink-0 text-[var(--dex-accent-500)]" />
+          <Wand2 size={11} className="shrink-0 text-[var(--dex-accent-500)]" />
           {card.name}
         </span>
         <span className="line-clamp-2 text-[10px] leading-tight text-zinc-500">
-          {summaries[0] || TYPE_LABEL[cardType]}
+          {summaries[0] || 'Trainer'}
         </span>
       </button>
     );

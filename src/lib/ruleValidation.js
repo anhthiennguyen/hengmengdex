@@ -61,7 +61,7 @@ export function validateRules(rules, cardType) {
   }
 
   if (cardType !== 'meng' && rules.length !== 1) {
-    return { valid: false, error: 'Item and Trainer cards need exactly one effect.' };
+    return { valid: false, error: 'Trainer cards need exactly one effect.' };
   }
 
   for (const rule of rules) {

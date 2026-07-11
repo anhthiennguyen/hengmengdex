@@ -35,7 +35,7 @@ const inputClass =
 export default function RuleBuilder({ rules, onChange, cardType }) {
   const isMeng = cardType === 'meng';
 
-  // Item/Trainer cards always carry exactly one implicit "on play" rule.
+  // Trainer cards always carry exactly one implicit "on play" rule.
   useEffect(() => {
     if (!isMeng && rules.length !== 1) {
       onChange([defaultRule(cardType)]);

@@ -4,7 +4,7 @@ import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { summarizeRules } from '../lib/ruleSummary';
 
-const CARD_TYPE_LABELS = { meng: 'Meng', item: 'Item', trainer: 'Trainer' };
+const CARD_TYPE_LABELS = { meng: 'Meng', trainer: 'Trainer' };
 
 export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
   const [confirming, setConfirming] = useState(false);

@@ -88,7 +88,7 @@ service cloud.firestore {
           let baseOk = d.name is string && d.name.size() > 0 && d.name.size() <= 60 &&
                        d.description is string &&
                        d.imageUrl is string &&
-                       d.cardType in ['meng', 'item', 'trainer'] &&
+                       d.cardType in ['meng', 'trainer'] &&
                        isValidRules(d.get('rules', []));
           return baseOk && (
             (d.cardType == 'meng' && withinCaps()) ||

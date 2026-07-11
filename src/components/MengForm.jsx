@@ -12,7 +12,6 @@ const MAX_IMAGE_DATA_URL_LENGTH = 700_000;
 
 const CARD_TYPES = [
   { value: 'meng', label: 'Meng' },
-  { value: 'item', label: 'Item' },
   { value: 'trainer', label: 'Trainer' },
 ];
 

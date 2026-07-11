@@ -183,10 +183,6 @@ class LobbyEngine {
     this.send({ type: 'attack', battleId });
   }
 
-  playItem(battleId, cardId) {
-    this.send({ type: 'play_item', battleId, cardId });
-  }
-
   playTrainer(battleId, cardId) {
     this.send({ type: 'play_trainer', battleId, cardId });
   }
@@ -389,17 +385,14 @@ class LobbyEngine {
         break;
       }
 
-      case 'play_item':
       case 'play_trainer': {
         const battle = this.state.battles[intent.battleId];
         if (!battle || battle.phase !== 'battle' || battle.turn !== fromPeerId || battle.swapNeeded) return;
-
-        const expectedType = intent.type === 'play_item' ? 'item' : 'trainer';
-        if (expectedType === 'trainer' && battle.trainerUsed[fromPeerId]) return;
+        if (battle.trainerUsed[fromPeerId]) return;
 
         const team = battle.teams[fromPeerId];
         const cardIdx = team.findIndex(
-          (c) => c.id === intent.cardId && c.cardType === expectedType && !c.played
+          (c) => c.id === intent.cardId && c.cardType === 'trainer' && !c.played
         );
         if (cardIdx === -1) return;
 
@@ -408,7 +401,7 @@ class LobbyEngine {
 
         const playedCard = team[cardIdx];
         playedCard.played = true;
-        if (expectedType === 'trainer') battle.trainerUsed[fromPeerId] = true;
+        battle.trainerUsed[fromPeerId] = true;
 
         battle.log.push(`${battle.names[fromPeerId]} played ${playedCard.name}.`);
         battle.log.push(...resolveRules(playedCard.rules, 'on_play', activeCard, playedCard.id));

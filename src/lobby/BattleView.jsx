@@ -61,7 +61,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
     const oppCard = battle.teams[opponentId][battle.active[opponentId]];
     const myTurn = battle.turn === myPeerId && !battle.swapNeeded;
     const needsMySwap = battle.swapNeeded === myPeerId;
-    const myHand = battle.teams[myPeerId].filter((c) => c.cardType !== 'meng' && !c.played);
+    const myHand = battle.teams[myPeerId].filter((c) => c.cardType === 'trainer' && !c.played);
     const trainerUsed = !!battle.trainerUsed?.[myPeerId];
 
     return (
@@ -104,21 +104,13 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
                 <p className="mb-1.5 text-xs font-bold text-zinc-500">Your hand</p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {myHand.map((card) => {
-                    const isTrainer = card.cardType === 'trainer';
-                    const cardDisabled = !myTurn || (isTrainer && trainerUsed);
+                    const cardDisabled = !myTurn || trainerUsed;
                     return (
                       <MengCardTile
                         key={card.id}
                         card={card}
                         disabled={cardDisabled}
-                        onClick={
-                          cardDisabled
-                            ? undefined
-                            : () =>
-                                isTrainer
-                                  ? engine.playTrainer(battle.battleId, card.id)
-                                  : engine.playItem(battle.battleId, card.id)
-                        }
+                        onClick={cardDisabled ? undefined : () => engine.playTrainer(battle.battleId, card.id)}
                       />
                     );
                   })}
