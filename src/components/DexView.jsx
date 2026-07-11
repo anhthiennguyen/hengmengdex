@@ -156,11 +156,11 @@ export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAut
       )}
 
       {showAdd && user && (
-        <MengForm user={user} dex={dex} onClose={() => setShowAdd(false)} />
+        <MengForm user={user} dex={dex} entries={entries} onClose={() => setShowAdd(false)} />
       )}
 
       {editing && user && (
-        <MengForm user={user} dex={dex} entry={editing} onClose={() => setEditing(null)} />
+        <MengForm user={user} dex={dex} entries={entries} entry={editing} onClose={() => setEditing(null)} />
       )}
 
       {showEditDex && (

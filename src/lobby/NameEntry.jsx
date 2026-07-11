@@ -13,7 +13,7 @@ export default function NameEntry({ onSubmit }) {
     <div className="mx-auto max-w-xs">
       <h2 className="text-center text-lg font-bold text-zinc-900">Enter a name</h2>
       <p className="mt-1 text-center text-xs text-zinc-500">
-        Temporary for this lobby only — not saved anywhere.
+        Temporary for this lobby only, not saved anywhere.
       </p>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
         <input

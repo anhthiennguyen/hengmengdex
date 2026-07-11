@@ -28,3 +28,18 @@ const TYPE_MAP = Object.fromEntries(POKEMON_TYPES.map((t) => [t.value, t]));
 export function getTypeInfo(value) {
   return TYPE_MAP[value] || TYPE_MAP.normal;
 }
+
+// A pseudo-type used only in attack Energy costs — never a valid `type`,
+// `weakness`, or `resistance` value. Represents "any 1 Energy of any type,"
+// matching the Pokemon TCG's colorless/star cost symbol.
+export const COLORLESS_ENERGY = { value: 'colorless', label: 'Colorless', color: '#C6C6A7' };
+
+// Energy costs can be paid with any of the 18 elemental types or Colorless.
+export const ENERGY_TYPES = [...POKEMON_TYPES, COLORLESS_ENERGY];
+export const ENERGY_TYPE_VALUES = ENERGY_TYPES.map((t) => t.value);
+
+const ENERGY_TYPE_MAP = Object.fromEntries(ENERGY_TYPES.map((t) => [t.value, t]));
+
+export function getEnergyTypeInfo(value) {
+  return ENERGY_TYPE_MAP[value] || ENERGY_TYPE_MAP.colorless;
+}

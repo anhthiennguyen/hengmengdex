@@ -7,7 +7,8 @@ import {
   MAX_ROUNDS,
   MENG_TRIGGERS,
   CONDITION_FIELDS,
-  EFFECT_ACTIONS,
+  ALL_EFFECT_ACTIONS,
+  STATUS_EFFECT_ACTION_VALUES,
   defaultTriggerForCardType,
 } from '../lib/ruleConstants';
 import { summarizeRule } from '../lib/ruleSummary';
@@ -167,50 +168,65 @@ export default function RuleBuilder({ rules, onChange, cardType }) {
               <div key={effectIndex} className="flex flex-wrap items-center gap-2 rounded-lg bg-white p-2">
                 <select
                   value={effect.action}
-                  onChange={(e) => updateEffect(ruleIndex, effectIndex, { action: e.target.value })}
+                  onChange={(e) => {
+                    const action = e.target.value;
+                    const wasStatus = STATUS_EFFECT_ACTION_VALUES.includes(effect.action);
+                    const isStatus = STATUS_EFFECT_ACTION_VALUES.includes(action);
+                    if (isStatus) {
+                      updateEffect(ruleIndex, effectIndex, { action });
+                    } else if (wasStatus) {
+                      updateEffect(ruleIndex, effectIndex, { action, amount: 10, duration: 'permanent' });
+                    } else {
+                      updateEffect(ruleIndex, effectIndex, { action });
+                    }
+                  }}
                   className={inputClass}
                 >
-                  {EFFECT_ACTIONS.map((a) => (
+                  {ALL_EFFECT_ACTIONS.map((a) => (
                     <option key={a.value} value={a.value}>
                       {a.label}
                     </option>
                   ))}
                 </select>
-                <input
-                  type="number"
-                  min="1"
-                  max={MAX_AMOUNT}
-                  value={effect.amount}
-                  onChange={(e) =>
-                    updateEffect(ruleIndex, effectIndex, { amount: parseInt(e.target.value, 10) || 1 })
-                  }
-                  className={`${inputClass} w-20`}
-                />
-                <select
-                  value={effect.duration === 'permanent' ? 'permanent' : 'rounds'}
-                  onChange={(e) =>
-                    updateEffect(ruleIndex, effectIndex, {
-                      duration: e.target.value === 'permanent' ? 'permanent' : 3,
-                    })
-                  }
-                  className={inputClass}
-                >
-                  <option value="permanent">Permanently</option>
-                  <option value="rounds">For N rounds</option>
-                </select>
-                {effect.duration !== 'permanent' && (
+                {!STATUS_EFFECT_ACTION_VALUES.includes(effect.action) && (
                   <>
                     <input
                       type="number"
                       min="1"
-                      max={MAX_ROUNDS}
-                      value={effect.duration}
+                      max={MAX_AMOUNT}
+                      value={effect.amount}
                       onChange={(e) =>
-                        updateEffect(ruleIndex, effectIndex, { duration: parseInt(e.target.value, 10) || 1 })
+                        updateEffect(ruleIndex, effectIndex, { amount: parseInt(e.target.value, 10) || 1 })
                       }
-                      className={`${inputClass} w-16`}
+                      className={`${inputClass} w-20`}
                     />
-                    <span className="text-xs font-semibold text-zinc-500">rounds</span>
+                    <select
+                      value={effect.duration === 'permanent' ? 'permanent' : 'rounds'}
+                      onChange={(e) =>
+                        updateEffect(ruleIndex, effectIndex, {
+                          duration: e.target.value === 'permanent' ? 'permanent' : 3,
+                        })
+                      }
+                      className={inputClass}
+                    >
+                      <option value="permanent">Permanently</option>
+                      <option value="rounds">For N rounds</option>
+                    </select>
+                    {effect.duration !== 'permanent' && (
+                      <>
+                        <input
+                          type="number"
+                          min="1"
+                          max={MAX_ROUNDS}
+                          value={effect.duration}
+                          onChange={(e) =>
+                            updateEffect(ruleIndex, effectIndex, { duration: parseInt(e.target.value, 10) || 1 })
+                          }
+                          className={`${inputClass} w-16`}
+                        />
+                        <span className="text-xs font-semibold text-zinc-500">rounds</span>
+                      </>
+                    )}
                   </>
                 )}
                 {rule.effects.length > 1 && (

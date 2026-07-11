@@ -60,7 +60,7 @@ export default function Roster({ roster, myPeerId, incomingRequests, onChallenge
         ))}
         {others.length === 0 && (
           <p className="py-4 text-center text-xs text-zinc-400">
-            Waiting for others to join — send them the lobby link.
+            Waiting for others to join. Send them the lobby link.
           </p>
         )}
       </div>

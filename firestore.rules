@@ -51,10 +51,58 @@ service cloud.firestore {
         function isDexAdmin() {
           return isSignedIn() && (dex().ownerId == request.auth.uid || isGlobalAdmin());
         }
+
+        function isValidStage(s) {
+          return s in ['basic', 'stage1', 'stage2'];
+        }
+        function isValidEnergyType(t) {
+          return t in [
+            'normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting',
+            'poison', 'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost',
+            'dragon', 'dark', 'steel', 'fairy', 'colorless'
+          ];
+        }
+        function isValidAttack(a) {
+          return a.name is string && a.name.size() > 0 && a.name.size() <= 40 &&
+                 a.damage is int && a.damage >= 0 && a.damage <= dex().maxAttack &&
+                 a.cost is list && a.cost.size() <= 5 &&
+                 (a.cost.size() < 1 || isValidEnergyType(a.cost[0])) &&
+                 (a.cost.size() < 2 || isValidEnergyType(a.cost[1])) &&
+                 (a.cost.size() < 3 || isValidEnergyType(a.cost[2])) &&
+                 (a.cost.size() < 4 || isValidEnergyType(a.cost[3])) &&
+                 (a.cost.size() < 5 || isValidEnergyType(a.cost[4])) &&
+                 a.text is string && a.text.size() <= 300;
+        }
+        function isValidAttacks(attacks) {
+          return attacks is list && attacks.size() >= 1 && attacks.size() <= 4 &&
+                 isValidAttack(attacks[0]) &&
+                 (attacks.size() < 2 || isValidAttack(attacks[1])) &&
+                 (attacks.size() < 3 || isValidAttack(attacks[2])) &&
+                 (attacks.size() < 4 || isValidAttack(attacks[3]));
+        }
+        // Cross-doc check that `evolvesFrom` actually points at a same-dex
+        // Pokemon card one evolution stage below this one. The client
+        // dropdown already only offers legal targets, so this is a
+        // hardening backstop, not the only line of defense.
+        function priorStage(stage) {
+          return stage == 'stage1' ? 'basic' : 'stage1';
+        }
+        function isValidEvolutionLink(stage, evolvesFrom) {
+          return stage == 'basic'
+            ? evolvesFrom == null
+            : (evolvesFrom is string &&
+               get(/databases/$(database)/documents/dexes/$(dexId)/meng/$(evolvesFrom)).data.cardType == 'meng' &&
+               get(/databases/$(database)/documents/dexes/$(dexId)/meng/$(evolvesFrom)).data.stage == priorStage(stage));
+        }
         function withinCaps() {
           let d = request.resource.data;
           return d.hp is int && d.hp >= 0 && d.hp <= dex().maxHp &&
-                 d.attack is int && d.attack >= 0 && d.attack <= dex().maxAttack;
+                 isValidAttacks(d.attacks) &&
+                 isValidStage(d.stage) &&
+                 isValidEvolutionLink(d.stage, d.get('evolvesFrom', null)) &&
+                 (d.get('weakness', null) == null || isValidPokemonType(d.weakness)) &&
+                 (d.get('resistance', null) == null || isValidPokemonType(d.resistance)) &&
+                 d.retreatCost is int && d.retreatCost >= 0 && d.retreatCost <= 4;
         }
 
         function isValidCondition(c) {
@@ -63,10 +111,14 @@ service cloud.firestore {
              c.value is int && c.value >= 1 && c.value <= 99);
         }
         function isValidEffect(e) {
-          return e.action in ['add_hp', 'subtract_hp', 'add_attack', 'subtract_attack'] &&
-                 e.amount is int && e.amount >= 1 && e.amount <= 9999 &&
-                 (e.duration == 'permanent' ||
-                  (e.duration is int && e.duration >= 1 && e.duration <= 99));
+          return (e.action in ['add_hp', 'subtract_hp', 'add_attack', 'subtract_attack'] &&
+                  e.amount is int && e.amount >= 1 && e.amount <= 9999 &&
+                  (e.duration == 'permanent' ||
+                   (e.duration is int && e.duration >= 1 && e.duration <= 99))) ||
+                 (e.action in [
+                   'inflict_asleep', 'inflict_confused', 'inflict_paralyzed',
+                   'inflict_burned', 'inflict_poisoned', 'cure_all_conditions'
+                 ]);
         }
         function isValidRule(r) {
           return r.trigger in ['on_enter', 'on_turn_start', 'on_attack', 'on_hit', 'on_play'] &&
@@ -100,7 +152,8 @@ service cloud.firestore {
                        isValidRules(d.get('rules', []));
           return baseOk && (
             (d.cardType == 'meng' && withinCaps() && isValidPokemonType(d.type)) ||
-            (d.cardType != 'meng' && !('hp' in d) && !('attack' in d) && !('type' in d))
+            (d.cardType == 'trainer' && !('hp' in d) && !('attack' in d) && !('type' in d) &&
+             d.trainerType in ['item', 'supporter'])
           );
         }
 

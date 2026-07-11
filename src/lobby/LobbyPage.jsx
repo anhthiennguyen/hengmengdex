@@ -112,7 +112,7 @@ function Shell({ children, onLeave, dexName, dexColor }) {
       <div className="mx-auto max-w-md px-4 py-10">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-lg font-extrabold text-zinc-900">
-            Battle Lobby{dexName ? ` — ${dexName}` : ''}
+            Battle Lobby{dexName ? `: ${dexName}` : ''}
           </h1>
           <button
             type="button"

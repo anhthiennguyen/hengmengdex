@@ -7,6 +7,7 @@ import {
   PLAY_TRIGGER,
   CONDITION_FIELDS,
   EFFECT_ACTIONS,
+  STATUS_EFFECT_ACTION_VALUES,
 } from './ruleConstants';
 
 const MENG_TRIGGER_VALUES = MENG_TRIGGERS.map((t) => t.value);
@@ -15,6 +16,11 @@ const EFFECT_ACTION_VALUES = EFFECT_ACTIONS.map((a) => a.value);
 
 function validateEffect(effect) {
   if (!effect || typeof effect !== 'object') return 'Each effect needs an action.';
+
+  if (STATUS_EFFECT_ACTION_VALUES.includes(effect.action)) {
+    return null; // bare {action} shape, no amount/duration to check
+  }
+
   if (!EFFECT_ACTION_VALUES.includes(effect.action)) return 'Invalid effect action.';
   if (!Number.isInteger(effect.amount) || effect.amount < 1 || effect.amount > MAX_AMOUNT) {
     return `Amount must be a whole number between 1 and ${MAX_AMOUNT}.`;

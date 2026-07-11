@@ -1,13 +1,24 @@
-import { MENG_TRIGGERS, PLAY_TRIGGER, CONDITION_FIELDS, EFFECT_ACTIONS } from './ruleConstants';
+import {
+  MENG_TRIGGERS,
+  PLAY_TRIGGER,
+  CONDITION_FIELDS,
+  EFFECT_ACTIONS,
+  STATUS_EFFECT_ACTIONS,
+  STATUS_EFFECT_ACTION_VALUES,
+} from './ruleConstants';
 
 const TRIGGER_LABELS = Object.fromEntries(
   [...MENG_TRIGGERS, PLAY_TRIGGER].map((t) => [t.value, t.label])
 );
 const CONDITION_LABELS = Object.fromEntries(CONDITION_FIELDS.map((f) => [f.value, f.label]));
 const ACTION_LABELS = Object.fromEntries(EFFECT_ACTIONS.map((a) => [a.value, a.label]));
+const STATUS_ACTION_LABELS = Object.fromEntries(STATUS_EFFECT_ACTIONS.map((a) => [a.value, a.label]));
 
 export function summarizeEffect(effect) {
   if (!effect) return '';
+  if (STATUS_EFFECT_ACTION_VALUES.includes(effect.action)) {
+    return STATUS_ACTION_LABELS[effect.action] || effect.action;
+  }
   const actionLabel = ACTION_LABELS[effect.action] || effect.action;
   const durationText =
     effect.duration === 'permanent'

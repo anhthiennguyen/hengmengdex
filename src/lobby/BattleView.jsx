@@ -1,10 +1,36 @@
-import { Loader2, Swords, Trophy, Flag } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Loader2, Trophy, Flag, Layers, Zap, ArrowLeftRight, Sparkles as SparklesIcon } from 'lucide-react';
 import MengCardTile from './MengCardTile';
+import ActivePokemonPanel from './ActivePokemonPanel';
+import SetupPhase from './SetupPhase';
+
+function zoneCount(zone) {
+  return Array.isArray(zone) ? zone.length : zone?.count ?? 0;
+}
 
 export default function BattleView({ battle, myPeerId, engine, onClose }) {
   const opponentId = battle.players.find((p) => p !== myPeerId);
   const myName = battle.names[myPeerId];
   const opponentName = battle.names[opponentId];
+
+  const [mode, setMode] = useState(null); // null | 'bench' | 'attach' | 'retreat' | 'evolve'
+  const [attachEnergyId, setAttachEnergyId] = useState(null);
+  const [retreatBenchId, setRetreatBenchId] = useState(null);
+  const [retreatEnergyIds, setRetreatEnergyIds] = useState([]);
+
+  function changeMode(next) {
+    setMode((current) => (current === next ? null : next));
+    setAttachEnergyId(null);
+    setRetreatBenchId(null);
+    setRetreatEnergyIds([]);
+  }
+
+  useEffect(() => {
+    setMode(null);
+    setAttachEnergyId(null);
+    setRetreatBenchId(null);
+    setRetreatEnergyIds([]);
+  }, [battle.turn, battle.phase]);
 
   if (battle.phase === 'pending') {
     const iAmChallenger = battle.challenger === myPeerId;
@@ -15,144 +41,326 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
           <p className="text-sm font-semibold text-zinc-700">
             {iAmChallenger
               ? `Waiting for ${opponentName} to accept…`
-              : `${myName} — respond to the challenge from the lobby screen.`}
+              : `${myName}, respond to the challenge from the lobby screen.`}
           </p>
         </div>
       </Overlay>
     );
   }
 
-  if (battle.phase === 'draft') {
-    const myTurn = battle.draftTurn === myPeerId;
+  if (battle.phase === 'setup') {
     return (
-      <Overlay>
-        <h2 className="text-center text-lg font-bold text-zinc-900">Draft Your Team</h2>
-        <p className="mt-1 text-center text-xs text-zinc-500">
-          {myTurn ? "Your pick — choose a Pokemon." : `Waiting for ${opponentName} to pick…`}
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-semibold text-zinc-600">
-          <div>
-            {myName}'s team ({battle.teams[myPeerId].length}/{battle.deckSize})
-          </div>
-          <div className="text-right">
-            {opponentName}'s team ({battle.teams[opponentId].length}/{battle.deckSize})
-          </div>
-        </div>
-
-        <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-zinc-100 bg-zinc-50 p-2">
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {battle.pool.map((card) => (
-              <MengCardTile
-                key={card.id}
-                card={card}
-                disabled={!myTurn}
-                onClick={myTurn ? () => engine.draftPick(battle.battleId, card.id) : undefined}
-              />
-            ))}
-          </div>
-        </div>
+      <Overlay wide>
+        <SetupPhase battle={battle} myPeerId={myPeerId} opponentName={opponentName} engine={engine} />
       </Overlay>
     );
   }
 
   if (battle.phase === 'battle') {
-    const myCard = battle.teams[myPeerId][battle.active[myPeerId]];
-    const oppCard = battle.teams[opponentId][battle.active[opponentId]];
-    const myTurn = battle.turn === myPeerId && !battle.swapNeeded;
-    const needsMySwap = battle.swapNeeded === myPeerId;
-    const myHand = battle.teams[myPeerId].filter((c) => c.cardType === 'trainer' && !c.played);
-    const trainerUsed = !!battle.trainerUsed?.[myPeerId];
+    const pendingChoice = battle.pendingChoice || [];
+    const myTurn = battle.turn === myPeerId && pendingChoice.length === 0;
+    const myPendingChoice = pendingChoice.includes(myPeerId);
+    const opponentPendingChoice = pendingChoice.includes(opponentId);
+
+    const myActive = battle.active[myPeerId];
+    const myBench = battle.bench[myPeerId] || [];
+    const oppActive = battle.active[opponentId];
+    const oppBench = battle.bench[opponentId] || [];
+    const myHand = battle.hands[myPeerId] || [];
+
+    if (myPendingChoice) {
+      return (
+        <Overlay wide>
+          <h2 className="text-center text-lg font-bold text-zinc-900">Choose Your Next Pokemon!</h2>
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {myBench.map((card) => (
+              <MengCardTile
+                key={card.id}
+                card={card}
+                showHp
+                onClick={() => engine.chooseNewActive(battle.battleId, card.id)}
+              />
+            ))}
+          </div>
+          <LogPanel log={battle.log} />
+        </Overlay>
+      );
+    }
+
+    const myBasics = myHand.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
+    const myEnergy = myHand.filter((c) => c.cardType === 'energy');
+    const myItems = myHand.filter((c) => c.cardType === 'trainer' && c.trainerType === 'item');
+    const mySupporters = myHand.filter((c) => c.cardType === 'trainer' && c.trainerType === 'supporter');
+    const myEvolutions = myHand.filter((c) => c.cardType === 'meng' && c.stage !== 'basic');
+
+    function evolutionTarget(evoCard) {
+      const candidates = [myActive, ...myBench].filter(Boolean);
+      return candidates.find(
+        (c) =>
+          c.id === evoCard.evolvesFrom &&
+          c.enteredPlayOnTurn !== battle.turnNumber &&
+          battle.turnCountByPlayer[myPeerId] !== 1
+      );
+    }
+
+    const energyAttached = !!battle.energyAttachedThisTurn?.[myPeerId];
+    const hasRetreated = !!battle.retreatedThisTurn?.[myPeerId];
+    const supporterUsed = !!battle.supporterUsedThisTurn?.[myPeerId];
+    const activeConditionBlocksRetreat = ['asleep', 'paralyzed'].includes(myActive?.conditions?.primary?.type);
+    const canPlaySupporter = !supporterUsed && battle.turnNumber !== 1;
+
+    function attachTarget(target) {
+      if (!attachEnergyId) return;
+      engine.attachEnergy(battle.battleId, attachEnergyId, target.id);
+      changeMode(null);
+    }
+
+    function confirmRetreat() {
+      if (!retreatBenchId) return;
+      if (retreatEnergyIds.length !== (myActive?.retreatCost ?? 0)) return;
+      engine.retreat(battle.battleId, retreatBenchId, retreatEnergyIds);
+      changeMode(null);
+    }
+
+    function selectRetreatTarget(card) {
+      if ((myActive?.retreatCost ?? 0) === 0) {
+        engine.retreat(battle.battleId, card.id, []);
+        changeMode(null);
+        return;
+      }
+      setRetreatBenchId(card.id);
+    }
 
     return (
       <Overlay wide>
         <h2 className="text-center text-lg font-bold text-zinc-900">Battle!</h2>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="mb-1 text-center text-xs font-bold text-zinc-500">{opponentName}</p>
-            <MengCardTile card={oppCard} showHp />
-          </div>
-          <div>
-            <p className="mb-1 text-center text-xs font-bold text-zinc-500">{myName} (you)</p>
-            <MengCardTile card={myCard} showHp />
-          </div>
+        <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-zinc-500">
+          <span>
+            {opponentName}: Prizes {zoneCount(battle.prizePiles[opponentId])} · Deck{' '}
+            {zoneCount(battle.decks[opponentId])} · Hand {zoneCount(battle.hands[opponentId])}
+          </span>
+          <span>
+            {myName}: Prizes {zoneCount(battle.prizePiles[myPeerId])} · Deck {zoneCount(battle.decks[myPeerId])}
+          </span>
         </div>
 
-        {needsMySwap ? (
-          <div className="mt-4">
-            <p className="mb-2 text-center text-xs font-semibold text-[var(--dex-accent-700)]">
-              Choose your next Pokemon!
-            </p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {battle.teams[myPeerId]
-                .filter((c) => c.cardType === 'meng' && c.alive)
-                .map((card) => (
-                  <MengCardTile
-                    key={card.id}
-                    card={card}
-                    showHp
-                    onClick={() => engine.swapCard(battle.battleId, card.id)}
-                  />
-                ))}
-            </div>
+        <div className="mt-3 grid grid-cols-2 gap-4">
+          <ActivePokemonPanel card={oppActive} label={opponentName} canAttack={false} />
+          <ActivePokemonPanel
+            card={myActive}
+            label={`${myName} (you)`}
+            canAttack={myTurn}
+            onAttack={(attackId) => engine.attack(battle.battleId, attackId)}
+          />
+        </div>
+
+        {(oppBench.length > 0 || myBench.length > 0) && (
+          <div className="mt-3 grid grid-cols-2 gap-4">
+            <BenchRow cards={oppBench} />
+            <BenchRow
+              cards={myBench}
+              onSelect={mode === 'attach' && attachEnergyId ? attachTarget : undefined}
+              highlightId={retreatBenchId}
+              onSelectRetreat={mode === 'retreat' && !retreatBenchId ? selectRetreatTarget : undefined}
+            />
           </div>
-        ) : (
-          <>
-            {myHand.length > 0 && (
-              <div className="mt-4">
-                <p className="mb-1.5 text-xs font-bold text-zinc-500">Your hand</p>
+        )}
+
+        {opponentPendingChoice && (
+          <p className="mt-3 text-center text-xs font-semibold text-amber-600">
+            {opponentName} is choosing their next Pokemon…
+          </p>
+        )}
+
+        {myTurn && (
+          <div className="mt-4">
+            <div className="flex flex-wrap justify-center gap-2">
+              <ActionButton
+                icon={<Layers size={14} />}
+                label="Bench a Basic"
+                active={mode === 'bench'}
+                disabled={myBasics.length === 0 || myBench.length >= 5}
+                onClick={() => changeMode('bench')}
+              />
+              <ActionButton
+                icon={<Zap size={14} />}
+                label="Attach Energy"
+                active={mode === 'attach'}
+                disabled={myEnergy.length === 0 || energyAttached}
+                onClick={() => changeMode('attach')}
+              />
+              <ActionButton
+                icon={<ArrowLeftRight size={14} />}
+                label="Retreat"
+                active={mode === 'retreat'}
+                disabled={myBench.length === 0 || hasRetreated || activeConditionBlocksRetreat || !myActive}
+                onClick={() => changeMode('retreat')}
+              />
+              <ActionButton
+                icon={<SparklesIcon size={14} />}
+                label="Evolve"
+                active={mode === 'evolve'}
+                disabled={myEvolutions.length === 0}
+                onClick={() => changeMode('evolve')}
+              />
+            </div>
+
+            {mode === 'bench' && (
+              <SubPanel title="Choose a Basic to bench">
+                <TileGrid
+                  cards={myBasics}
+                  onSelect={(card) => {
+                    engine.benchBasic(battle.battleId, card.id);
+                    changeMode(null);
+                  }}
+                />
+              </SubPanel>
+            )}
+
+            {mode === 'attach' && !attachEnergyId && (
+              <SubPanel title="Choose an Energy card">
+                <TileGrid cards={myEnergy} onSelect={(card) => setAttachEnergyId(card.id)} />
+              </SubPanel>
+            )}
+            {mode === 'attach' && attachEnergyId && (
+              <SubPanel title="Choose a Pokemon to attach it to">
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {myHand.map((card) => {
-                    const cardDisabled = !myTurn || trainerUsed;
+                  {[myActive, ...myBench].filter(Boolean).map((card) => (
+                    <MengCardTile key={card.id} card={card} showHp onClick={() => attachTarget(card)} />
+                  ))}
+                </div>
+              </SubPanel>
+            )}
+
+            {mode === 'retreat' && (
+              <SubPanel
+                title={
+                  !retreatBenchId
+                    ? 'Choose your new Active Pokemon'
+                    : `Discard ${myActive.retreatCost} Energy to retreat`
+                }
+              >
+                {!retreatBenchId ? (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {myBench.map((card) => (
+                      <MengCardTile key={card.id} card={card} showHp onClick={() => selectRetreatTarget(card)} />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {myActive.retreatCost > 0 && (
+                      <>
+                        <div className="flex flex-wrap gap-1.5">
+                          {myActive.attachedEnergy.map((e) => {
+                            const chosen = retreatEnergyIds.includes(e.id);
+                            return (
+                              <button
+                                key={e.id}
+                                type="button"
+                                onClick={() =>
+                                  setRetreatEnergyIds((ids) =>
+                                    chosen ? ids.filter((id) => id !== e.id) : [...ids, e.id]
+                                  )
+                                }
+                                className={`rounded-full border px-2 py-1 text-[11px] font-bold ${
+                                  chosen
+                                    ? 'border-[var(--dex-accent-500)] bg-[var(--dex-accent-50)]'
+                                    : 'border-zinc-300'
+                                }`}
+                              >
+                                {e.energyType}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={retreatEnergyIds.length !== myActive.retreatCost}
+                          onClick={confirmRetreat}
+                          className="mt-2 rounded-lg bg-[var(--dex-accent-600)] px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Confirm Retreat
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </SubPanel>
+            )}
+
+            {mode === 'evolve' && (
+              <SubPanel title="Choose an evolution card">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {myEvolutions.map((card) => {
+                    const target = evolutionTarget(card);
                     return (
                       <MengCardTile
                         key={card.id}
                         card={card}
-                        disabled={cardDisabled}
-                        onClick={cardDisabled ? undefined : () => engine.playTrainer(battle.battleId, card.id)}
+                        disabled={!target}
+                        onClick={
+                          target
+                            ? () => {
+                                engine.evolve(battle.battleId, card.id, target.id);
+                                changeMode(null);
+                              }
+                            : undefined
+                        }
                       />
                     );
                   })}
                 </div>
+              </SubPanel>
+            )}
+
+            {(myItems.length > 0 || mySupporters.length > 0) && (
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs font-bold text-zinc-500">Your Trainer cards</p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {myItems.map((card) => (
+                    <MengCardTile
+                      key={card.id}
+                      card={card}
+                      onClick={() => engine.playItem(battle.battleId, card.id)}
+                    />
+                  ))}
+                  {mySupporters.map((card) => (
+                    <MengCardTile
+                      key={card.id}
+                      card={card}
+                      disabled={!canPlaySupporter}
+                      onClick={canPlaySupporter ? () => engine.playSupporter(battle.battleId, card.id) : undefined}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="mx-auto mt-5 flex items-center justify-center gap-2">
+            <div className="mx-auto mt-4 flex items-center justify-center">
               <button
                 type="button"
-                disabled={!myTurn}
-                onClick={() => engine.attack(battle.battleId)}
-                className="flex items-center justify-center gap-2 rounded-lg bg-[var(--dex-accent-600)] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[var(--dex-accent-700)] disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => engine.passEndTurn(battle.battleId)}
+                className="flex items-center justify-center gap-2 rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-50"
               >
-                <Swords size={16} />
-                {myTurn ? 'Attack' : `Waiting for ${opponentName}…`}
+                <Flag size={15} />
+                Pass / End Turn
               </button>
-              {myTurn && (
-                <button
-                  type="button"
-                  onClick={() => engine.endTurn(battle.battleId)}
-                  className="flex items-center justify-center gap-2 rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-50"
-                >
-                  <Flag size={15} />
-                  Pass
-                </button>
-              )}
             </div>
-          </>
+          </div>
         )}
 
-        <div className="mt-5 max-h-32 overflow-y-auto rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
-          {battle.log.slice(-12).map((line, i) => (
-            <div key={i}>{line}</div>
-          ))}
-        </div>
+        {!myTurn && !myPendingChoice && !opponentPendingChoice && (
+          <p className="mt-4 text-center text-xs font-semibold text-zinc-400">Waiting for {opponentName}…</p>
+        )}
+
+        <LogPanel log={battle.log} />
       </Overlay>
     );
   }
 
   if (battle.phase === 'finished') {
-    const isDraw = battle.winner === null;
+    const isDraw = battle.winner === null || battle.winner === undefined;
     const iWon = battle.winner === myPeerId;
     return (
       <Overlay>
@@ -179,9 +387,74 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
 function Overlay({ children, wide }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className={`w-full ${wide ? 'max-w-lg' : 'max-w-sm'} rounded-2xl bg-white p-6 shadow-2xl`}>
+      <div className={`max-h-[90vh] w-full overflow-y-auto ${wide ? 'max-w-lg' : 'max-w-sm'} rounded-2xl bg-white p-6 shadow-2xl`}>
         {children}
       </div>
     </div>
+  );
+}
+
+function LogPanel({ log }) {
+  return (
+    <div className="mt-5 max-h-32 overflow-y-auto rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
+      {(log || []).slice(-12).map((line, i) => (
+        <div key={i}>{line}</div>
+      ))}
+    </div>
+  );
+}
+
+function BenchRow({ cards, onSelect, onSelectRetreat, highlightId }) {
+  if (cards.length === 0) return <div />;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {cards.map((card) => (
+        <div key={card.id} className="w-16">
+          <MengCardTile
+            card={card}
+            showHp
+            selected={card.id === highlightId}
+            onClick={onSelectRetreat ? () => onSelectRetreat(card) : onSelect ? () => onSelect(card) : undefined}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TileGrid({ cards, onSelect }) {
+  return (
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      {cards.map((card) => (
+        <MengCardTile key={card.id} card={card} onClick={() => onSelect(card)} />
+      ))}
+    </div>
+  );
+}
+
+function SubPanel({ title, children }) {
+  return (
+    <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+      <p className="mb-2 text-xs font-bold text-zinc-600">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function ActionButton({ icon, label, active, disabled, onClick }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+        active
+          ? 'border-[var(--dex-accent-500)] bg-[var(--dex-accent-50)] text-[var(--dex-accent-700)]'
+          : 'border-zinc-300 text-zinc-600 hover:bg-zinc-50'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

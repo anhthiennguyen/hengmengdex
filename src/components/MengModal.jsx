@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { X, Trash2, Pencil, Loader2, Sparkles } from 'lucide-react';
+import { X, Trash2, Pencil, Loader2, Sparkles, Zap } from 'lucide-react';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { summarizeRules } from '../lib/ruleSummary';
+import { getEnergyTypeInfo } from '../lib/pokemonTypes';
 import TypeBadge from './TypeBadge';
 
 const CARD_TYPE_LABELS = { meng: 'Pokemon', trainer: 'Trainer' };
+const STAGE_LABELS = { basic: 'Basic', stage1: 'Stage 1', stage2: 'Stage 2' };
+const TRAINER_TYPE_LABELS = { item: 'Item', supporter: 'Supporter' };
 
 export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
   const [confirming, setConfirming] = useState(false);
@@ -51,20 +54,69 @@ export default function MengModal({ meng, dexId, canManage, onClose, onEdit }) {
             <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
               {CARD_TYPE_LABELS[meng.cardType] || 'Pokemon'}
             </span>
+            {meng.cardType === 'meng' && meng.stage && (
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                {STAGE_LABELS[meng.stage] || meng.stage}
+              </span>
+            )}
+            {meng.cardType === 'trainer' && meng.trainerType && (
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                {TRAINER_TYPE_LABELS[meng.trainerType] || meng.trainerType}
+              </span>
+            )}
             {typeof meng.type === 'string' && <TypeBadge type={meng.type} />}
           </div>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">{meng.description}</p>
 
-          {(typeof meng.hp === 'number' || typeof meng.attack === 'number') && (
-            <div className="mt-4 grid grid-cols-2 gap-2">
+          {typeof meng.hp === 'number' && (
+            <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="rounded-lg bg-[var(--dex-accent-50)] px-3 py-2 text-center">
                 <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--dex-accent-500)]">HP</div>
-                <div className="text-lg font-extrabold text-[var(--dex-accent-700)]">{meng.hp ?? '—'}</div>
+                <div className="text-lg font-extrabold text-[var(--dex-accent-700)]">{meng.hp}</div>
               </div>
               <div className="rounded-lg bg-[var(--dex-accent-50)] px-3 py-2 text-center">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--dex-accent-500)]">Attack</div>
-                <div className="text-lg font-extrabold text-[var(--dex-accent-700)]">{meng.attack ?? '—'}</div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--dex-accent-500)]">Weak</div>
+                <div className="text-lg font-extrabold text-[var(--dex-accent-700)]">
+                  {meng.weakness ? <TypeBadge type={meng.weakness} /> : 'None'}
+                </div>
               </div>
+              <div className="rounded-lg bg-[var(--dex-accent-50)] px-3 py-2 text-center">
+                <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--dex-accent-500)]">Retreat</div>
+                <div className="text-lg font-extrabold text-[var(--dex-accent-700)]">{meng.retreatCost ?? 0}</div>
+              </div>
+            </div>
+          )}
+
+          {meng.resistance && (
+            <p className="mt-2 text-center text-[11px] font-semibold text-zinc-500">
+              Resists <TypeBadge type={meng.resistance} /> (−30 damage)
+            </p>
+          )}
+
+          {Array.isArray(meng.attacks) && meng.attacks.length > 0 && (
+            <div className="mt-4 grid gap-2">
+              {meng.attacks.map((attack) => (
+                <div key={attack.id} className="rounded-lg border border-zinc-200 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      {attack.cost?.map((energyType, i) => {
+                        const info = getEnergyTypeInfo(energyType);
+                        return (
+                          <Zap
+                            key={i}
+                            size={12}
+                            className="rounded-full"
+                            style={{ color: info.color, fill: info.color }}
+                          />
+                        );
+                      })}
+                      <span className="text-sm font-bold text-zinc-800">{attack.name}</span>
+                    </div>
+                    <span className="text-sm font-extrabold text-zinc-900">{attack.damage}</span>
+                  </div>
+                  {attack.text && <p className="mt-1 text-xs text-zinc-500">{attack.text}</p>}
+                </div>
+              ))}
             </div>
           )}
 

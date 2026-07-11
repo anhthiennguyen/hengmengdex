@@ -4,8 +4,10 @@ import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/fi
 import { db } from '../lib/firebase';
 import { resizeImageToDataUrl } from '../lib/resizeImage';
 import { validateRules } from '../lib/ruleValidation';
+import { validateAttacks, MAX_RETREAT_COST, STAGES } from '../lib/attackValidation';
 import { POKEMON_TYPES } from '../lib/pokemonTypes';
 import RuleBuilder from './RuleBuilder';
+import AttacksEditor from './AttacksEditor';
 
 // Firestore caps documents at 1MB; a resized 240px JPEG is normally a few
 // dozen KB, so this only trips on pathological inputs.
@@ -16,15 +18,30 @@ const CARD_TYPES = [
   { value: 'trainer', label: 'Trainer' },
 ];
 
-export default function MengForm({ user, dex, entry, onClose }) {
+const TRAINER_TYPES = [
+  { value: 'item', label: 'Item', hint: 'Play any number per turn' },
+  { value: 'supporter', label: 'Supporter', hint: 'Play only 1 per turn' },
+];
+
+function defaultAttack() {
+  return { id: `attack-${Date.now()}`, name: '', cost: [], damage: 10, text: '' };
+}
+
+export default function MengForm({ user, dex, entry, entries = [], onClose }) {
   const isEditing = !!entry;
 
   const [cardType, setCardType] = useState(entry?.cardType ?? 'meng');
   const [name, setName] = useState(entry?.name ?? '');
   const [description, setDescription] = useState(entry?.description ?? '');
   const [hp, setHp] = useState(entry?.hp != null ? String(entry.hp) : '');
-  const [attack, setAttack] = useState(entry?.attack != null ? String(entry.attack) : '');
   const [pokemonType, setPokemonType] = useState(entry?.type ?? 'normal');
+  const [stage, setStage] = useState(entry?.stage ?? 'basic');
+  const [evolvesFrom, setEvolvesFrom] = useState(entry?.evolvesFrom ?? null);
+  const [weakness, setWeakness] = useState(entry?.weakness ?? null);
+  const [resistance, setResistance] = useState(entry?.resistance ?? null);
+  const [retreatCost, setRetreatCost] = useState(entry?.retreatCost != null ? String(entry.retreatCost) : '1');
+  const [attacks, setAttacks] = useState(entry?.attacks ?? [defaultAttack()]);
+  const [trainerType, setTrainerType] = useState(entry?.trainerType ?? null);
   const [rules, setRules] = useState(entry?.rules ?? []);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(entry?.imageUrl ?? null);
@@ -33,10 +50,23 @@ export default function MengForm({ user, dex, entry, onClose }) {
 
   const isMeng = cardType === 'meng';
 
+  // Evolution targets: a Stage 1 must evolve from a Basic, a Stage 2 from a
+  // Stage 1 — both restricted to this same dex's other Pokemon cards.
+  const priorStage = stage === 'stage1' ? 'basic' : stage === 'stage2' ? 'stage1' : null;
+  const evolutionCandidates = entries.filter(
+    (e) => e.cardType === 'meng' && e.stage === priorStage && e.id !== entry?.id
+  );
+
   function handleFileChange(e) {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
     setPreview(f ? URL.createObjectURL(f) : entry?.imageUrl ?? null);
+  }
+
+  function handleStageChange(nextStage) {
+    setStage(nextStage);
+    if (nextStage === 'basic') setEvolvesFrom(null);
+    else setEvolvesFrom(null); // force re-pick when stage changes
   }
 
   async function handleSubmit(e) {
@@ -49,14 +79,30 @@ export default function MengForm({ user, dex, entry, onClose }) {
     }
 
     if (isMeng) {
-      if (!/^\d+$/.test(hp) || !/^\d+$/.test(attack)) {
-        setError('HP and Attack must both be whole numbers.');
+      if (!/^\d+$/.test(hp)) {
+        setError('HP must be a whole number.');
         return;
       }
-      if (parseInt(hp, 10) > dex.maxHp || parseInt(attack, 10) > dex.maxAttack) {
-        setError(`HP and Attack can't exceed this dex's caps (${dex.maxHp} HP / ${dex.maxAttack} Attack).`);
+      if (parseInt(hp, 10) > dex.maxHp) {
+        setError(`HP can't exceed this dex's cap (${dex.maxHp} HP).`);
         return;
       }
+      if (stage !== 'basic' && !evolvesFrom) {
+        setError(`Choose which ${priorStage === 'basic' ? 'Basic' : 'Stage 1'} Pokemon this evolves from.`);
+        return;
+      }
+      if (!/^\d+$/.test(retreatCost) || parseInt(retreatCost, 10) > MAX_RETREAT_COST) {
+        setError(`Retreat cost must be a whole number from 0 to ${MAX_RETREAT_COST}.`);
+        return;
+      }
+      const attacksCheck = validateAttacks(attacks, dex.maxAttack);
+      if (!attacksCheck.valid) {
+        setError(attacksCheck.error);
+        return;
+      }
+    } else if (!trainerType) {
+      setError('Choose whether this is an Item or Supporter card.');
+      return;
     }
 
     const rulesCheck = validateRules(rules, cardType);
@@ -71,7 +117,7 @@ export default function MengForm({ user, dex, entry, onClose }) {
       if (file) {
         imageUrl = await resizeImageToDataUrl(file);
         if (imageUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
-          setError('That image is too large even after resizing — try a simpler image.');
+          setError('That image is too large even after resizing. Try a simpler image.');
           setBusy(false);
           return;
         }
@@ -83,7 +129,24 @@ export default function MengForm({ user, dex, entry, onClose }) {
         description: description.trim(),
         imageUrl,
         rules,
-        ...(isMeng ? { hp: parseInt(hp, 10), attack: parseInt(attack, 10), type: pokemonType } : {}),
+        ...(isMeng
+          ? {
+              hp: parseInt(hp, 10),
+              type: pokemonType,
+              stage,
+              evolvesFrom: stage === 'basic' ? null : evolvesFrom,
+              weakness: weakness || null,
+              resistance: resistance || null,
+              retreatCost: parseInt(retreatCost, 10),
+              attacks: attacks.map(({ id, name: attackName, cost, damage, text }) => ({
+                id,
+                name: attackName.trim(),
+                cost,
+                damage,
+                text: text.trim(),
+              })),
+            }
+          : { trainerType }),
       };
 
       if (isEditing) {
@@ -193,36 +256,137 @@ export default function MengForm({ user, dex, entry, onClose }) {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-zinc-600">Attack (max {dex.maxAttack})</label>
+                  <label className="mb-1 block text-xs font-semibold text-zinc-600">Type</label>
+                  <select
+                    value={pokemonType}
+                    onChange={(e) => setPokemonType(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                  >
+                    {POKEMON_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-zinc-600">Evolution Stage</label>
+                  <select
+                    value={stage}
+                    onChange={(e) => handleStageChange(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                  >
+                    {STAGES.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-zinc-600">Retreat Cost</label>
                   <input
                     type="number"
                     inputMode="numeric"
                     min="0"
-                    max={dex.maxAttack}
+                    max={MAX_RETREAT_COST}
                     step="1"
-                    value={attack}
-                    onChange={(e) => setAttack(e.target.value)}
-                    placeholder="55"
+                    value={retreatCost}
+                    onChange={(e) => setRetreatCost(e.target.value)}
                     className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
                   />
                 </div>
               </div>
 
+              {stage !== 'basic' && (
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-zinc-600">
+                    Evolves From ({priorStage === 'basic' ? 'a Basic' : 'a Stage 1'})
+                  </label>
+                  <select
+                    value={evolvesFrom ?? ''}
+                    onChange={(e) => setEvolvesFrom(e.target.value || null)}
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                  >
+                    <option value="">Choose a card…</option>
+                    {evolutionCandidates.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {evolutionCandidates.length === 0 && (
+                    <p className="mt-1 text-[11px] text-amber-600">
+                      No eligible {priorStage === 'basic' ? 'Basic' : 'Stage 1'} Pokemon exist in this dex yet.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-zinc-600">Weakness</label>
+                  <select
+                    value={weakness ?? ''}
+                    onChange={(e) => setWeakness(e.target.value || null)}
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                  >
+                    <option value="">None</option>
+                    {POKEMON_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-zinc-600">Resistance</label>
+                  <select
+                    value={resistance ?? ''}
+                    onChange={(e) => setResistance(e.target.value || null)}
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+                  >
+                    <option value="">None</option>
+                    {POKEMON_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="mb-1 block text-xs font-semibold text-zinc-600">Type</label>
-                <select
-                  value={pokemonType}
-                  onChange={(e) => setPokemonType(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
-                >
-                  {POKEMON_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
+                <label className="mb-1 block text-xs font-semibold text-zinc-600">Attacks</label>
+                <AttacksEditor attacks={attacks} onChange={setAttacks} maxDamage={dex.maxAttack} />
               </div>
             </>
+          )}
+
+          {!isMeng && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-zinc-600">Trainer Type</label>
+              <div className="flex gap-2">
+                {TRAINER_TYPES.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setTrainerType(t.value)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-left text-xs transition ${
+                      trainerType === t.value
+                        ? 'border-[var(--dex-accent-500)] bg-[var(--dex-accent-50)]'
+                        : 'border-zinc-300 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <div className="font-bold text-zinc-800">{t.label}</div>
+                    <div className="text-zinc-500">{t.hint}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           <div>
