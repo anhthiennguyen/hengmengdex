@@ -8,9 +8,9 @@ export default function Navbar({ user, onOpenAuth, onOpenAdd, onCreateLobby }) {
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <img
-            src="/logo.jpg"
+            src="/logo.png"
             alt="HengMeng Dex"
-            className="h-8 w-8 rounded-full border-2 border-zinc-900 object-cover"
+            className="h-9 w-9 object-contain"
           />
           <span className="text-lg font-extrabold tracking-tight text-zinc-900">HengMeng Dex</span>
         </div>
