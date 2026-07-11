@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowLeft, Check, Copy, Plus, Settings, Swords } from 'lucide-react';
 import { useDex } from '../hooks/useDex';
 import { useMembership } from '../hooks/useMembership';
@@ -10,10 +10,9 @@ import MengModal from './MengModal';
 import MengForm from './MengForm';
 import DexForm from './DexForm';
 import JoinDexBanner from './JoinDexBanner';
-import JoinDexModal from './JoinDexModal';
 import DexThemeProvider from './DexThemeProvider';
 
-export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAuth, onOpenLobby }) {
+export default function DexView({ dexId, user, onBack, onOpenAuth, onOpenLobby }) {
   const { dex, entries, loading, error } = useDex(dexId);
   const { isMember } = useMembership(user, dexId);
   const isAdmin = useIsAdmin(user, dex);
@@ -23,17 +22,10 @@ export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAut
   const [showAdd, setShowAdd] = useState(false);
   const [showEditDex, setShowEditDex] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
   const [showBattleRequirements, setShowBattleRequirements] = useState(false);
 
   const poolLegality = useMemo(() => checkPoolLegality(entries), [entries]);
   const basicCount = poolLegality.cards.filter((c) => c.cardType === 'meng' && c.stage === 'basic').length;
-
-  useEffect(() => {
-    if (autoJoinPrompt && !loading && !isMember && !isAdmin) {
-      setShowJoinModal(true);
-    }
-  }, [autoJoinPrompt, loading, isMember, isAdmin]);
 
   const canAdd = !!user && (isMember || isAdmin);
   const canManageSelected = !!selected && !!user && (isAdmin || selected.createdBy === user.uid);
@@ -145,7 +137,7 @@ export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAut
         </div>
       </div>
 
-      {!isMember && !isAdmin && !showJoinModal && (
+      {!isMember && !isAdmin && (
         <JoinDexBanner user={user} dexId={dexId} onOpenAuth={onOpenAuth} />
       )}
 
@@ -174,16 +166,6 @@ export default function DexView({ dexId, user, autoJoinPrompt, onBack, onOpenAut
 
       {showEditDex && (
         <DexForm user={user} dex={dex} onClose={() => setShowEditDex(false)} />
-      )}
-
-      {showJoinModal && (
-        <JoinDexModal
-          user={user}
-          dex={dex}
-          dexId={dexId}
-          onClose={() => setShowJoinModal(false)}
-          onOpenAuth={onOpenAuth}
-        />
       )}
 
       {showBattleRequirements && (

@@ -21,7 +21,7 @@ function parseLocation() {
 
   const joinMatch = window.location.pathname.match(/^\/dex\/([A-Za-z0-9_-]+)\/join$/);
   if (joinMatch) {
-    return { view: 'dex', dexId: joinMatch[1], autoJoinPrompt: true };
+    return { view: 'dex', dexId: joinMatch[1] };
   }
 
   const dexMatch = window.location.pathname.match(/^\/dex\/([A-Za-z0-9_-]+)$/);
@@ -77,7 +77,6 @@ export default function App() {
             key={route.dexId}
             dexId={route.dexId}
             user={user}
-            autoJoinPrompt={route.autoJoinPrompt}
             onBack={() => navigate('/')}
             onOpenAuth={() => setShowAuth(true)}
             onOpenLobby={(code, host) => navigate(`/dex/${route.dexId}/lobby/${code}${host ? '?host=1' : ''}`)}
