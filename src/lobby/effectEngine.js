@@ -157,7 +157,10 @@ export function startTurn(battle, peerId) {
   if (battle.decks[peerId].length > 0) {
     const drawn = battle.decks[peerId].shift();
     battle.hands[peerId].push(drawn);
-    logs.push(`${battle.names[peerId]} drew a card.`);
+    // Structured, not a plain string: only the drawing player should see
+    // WHICH card it was (their opponent's draw is still hidden info) —
+    // battleRedaction.js resolves this into the right text per viewer.
+    logs.push({ type: 'draw', peerId, playerName: battle.names[peerId], cardName: drawn.name });
   }
 
   const opponentId = battle.players.find((p) => p !== peerId);

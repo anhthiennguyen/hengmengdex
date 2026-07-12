@@ -8,11 +8,29 @@
 // `this.state`. `cardPool` (the shared Dex pool during 'deckbuild') is
 // intentionally never redacted — it's public, both players pick from it.
 
+// Most log lines are plain strings (already safe to show everyone). A few
+// are structured entries carrying info that's only safe for one viewer —
+// e.g. a draw reveals a specific card name, which the drawing player's
+// opponent shouldn't see (that card is sitting in a hidden hand).
+function renderLogEntry(entry, viewerPeerId) {
+  if (typeof entry === 'string') return entry;
+  if (entry.type === 'draw') {
+    return entry.peerId === viewerPeerId
+      ? `${entry.playerName} drew ${entry.cardName} from the deck.`
+      : `${entry.playerName} drew a card from the deck.`;
+  }
+  return '';
+}
+
 function redactBattle(battle, viewerPeerId) {
   // Battles before the deal (still 'pending') have no hidden fields yet.
   if (!battle.players) return battle;
 
   const next = { ...battle };
+
+  if (battle.log) {
+    next.log = battle.log.map((entry) => renderLogEntry(entry, viewerPeerId));
+  }
 
   if (battle.decks) {
     next.hands = {};
