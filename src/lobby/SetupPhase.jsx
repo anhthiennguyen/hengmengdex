@@ -1,8 +1,52 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Loader2, Minus, Plus } from 'lucide-react';
 import { POKEMON_TYPES } from '../lib/pokemonTypes';
 import { MAX_ENERGY_PER_TYPE } from './energyLoadout';
 import MengCardTile from './MengCardTile';
+
+const HOLD_START_DELAY = 400; // ms before repeating kicks in, so a single tap doesn't double-fire
+const HOLD_REPEAT_INTERVAL = 80; // ms between repeats while held
+
+// A +/- button that fires once immediately on press, then keeps firing on
+// an interval for as long as it's held down (mouse or touch).
+function HoldButton({ onPress, ariaLabel, children }) {
+  const timeoutRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  function stop() {
+    clearTimeout(timeoutRef.current);
+    clearInterval(intervalRef.current);
+    timeoutRef.current = null;
+    intervalRef.current = null;
+  }
+
+  function start() {
+    onPress();
+    timeoutRef.current = setTimeout(() => {
+      intervalRef.current = setInterval(onPress, HOLD_REPEAT_INTERVAL);
+    }, HOLD_START_DELAY);
+  }
+
+  useEffect(() => stop, []);
+
+  return (
+    <button
+      type="button"
+      onMouseDown={start}
+      onMouseUp={stop}
+      onMouseLeave={stop}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        start();
+      }}
+      onTouchEnd={stop}
+      className="rounded-full p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+      aria-label={ariaLabel}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
   const [activeCardId, setActiveCardId] = useState(null);
@@ -151,25 +195,15 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
                 <span className="truncate">{t.label}</span>
               </span>
               <span className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => adjustEnergy(t.value, -1)}
-                  className="rounded-full p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-                  aria-label={`Remove ${t.label} Energy`}
-                >
+                <HoldButton onPress={() => adjustEnergy(t.value, -1)} ariaLabel={`Remove ${t.label} Energy`}>
                   <Minus size={12} />
-                </button>
+                </HoldButton>
                 <span className="w-4 text-center text-xs font-bold text-zinc-800">
                   {energyLoadout[t.value] || 0}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => adjustEnergy(t.value, 1)}
-                  className="rounded-full p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-                  aria-label={`Add ${t.label} Energy`}
-                >
+                <HoldButton onPress={() => adjustEnergy(t.value, 1)} ariaLabel={`Add ${t.label} Energy`}>
                   <Plus size={12} />
-                </button>
+                </HoldButton>
               </span>
             </div>
             );
