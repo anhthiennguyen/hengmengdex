@@ -141,14 +141,9 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
                   : 'border-zinc-200'
               }`}
             >
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-                {t.label}
-                {needed && (
-                  <span className="rounded-full bg-[var(--dex-accent-600)] px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">
-                    Needed
-                  </span>
-                )}
+              <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-zinc-700">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />
+                <span className="truncate">{t.label}</span>
               </span>
               <span className="flex items-center gap-1">
                 <button
