@@ -1,57 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Loader2, Minus, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { POKEMON_TYPES } from '../lib/pokemonTypes';
 import { MAX_ENERGY_PER_TYPE } from './energyLoadout';
 import MengCardTile from './MengCardTile';
 
-const HOLD_START_DELAY = 400; // ms before repeating kicks in, so a single tap doesn't double-fire
-const HOLD_REPEAT_INTERVAL = 80; // ms between repeats while held
-
-// A +/- button that fires once immediately on press, then keeps firing on
-// an interval for as long as it's held down (mouse or touch).
-function HoldButton({ onPress, ariaLabel, children }) {
-  const timeoutRef = useRef(null);
-  const intervalRef = useRef(null);
-
-  function stop() {
-    clearTimeout(timeoutRef.current);
-    clearInterval(intervalRef.current);
-    timeoutRef.current = null;
-    intervalRef.current = null;
-  }
-
-  function start() {
-    onPress();
-    timeoutRef.current = setTimeout(() => {
-      intervalRef.current = setInterval(onPress, HOLD_REPEAT_INTERVAL);
-    }, HOLD_START_DELAY);
-  }
-
-  useEffect(() => stop, []);
-
-  return (
-    <button
-      type="button"
-      onMouseDown={start}
-      onMouseUp={stop}
-      onMouseLeave={stop}
-      onTouchStart={(e) => {
-        e.preventDefault();
-        start();
-      }}
-      onTouchEnd={stop}
-      className="rounded-full p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-      aria-label={ariaLabel}
-    >
-      {children}
-    </button>
-  );
-}
-
 export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
   const [activeCardId, setActiveCardId] = useState(null);
   const [benchCardIds, setBenchCardIds] = useState([]);
-  const [energyLoadout, setEnergyLoadout] = useState({});
 
   const myReady = !!battle.setupReady?.[myPeerId];
   const opponentId = battle.players.find((p) => p !== myPeerId);
@@ -77,15 +32,10 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
   const allCards = [...(battle.hands?.[myPeerId] ?? []), ...(battle.decks?.[myPeerId] ?? [])];
   const basics = allCards.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
 
-  // Types across the player's WHOLE deck (including their own Prize pile —
-  // that's fine to read for this purpose since it's their own already-picked
-  // cards, not new information; the Prize cards themselves just stay
-  // visually hidden), so the Energy picker can remind them what they'll
-  // actually need, not just what happens to be visible right now.
-  const myWholeDeck = [...allCards, ...(battle.prizePiles?.[myPeerId] ?? [])];
-  const neededTypes = new Set(
-    myWholeDeck.filter((c) => c.cardType === 'meng').map((c) => c.type)
-  );
+  // Energy is no longer picked here — it's auto-granted per type based on
+  // the whole deck the player already built (see energyPools, computed at
+  // deckbuild time). This is just a read-only summary of that grant.
+  const grantedTypes = POKEMON_TYPES.filter((t) => (battle.energyPools?.[myPeerId]?.[t.value] || 0) > 0);
 
   function isPlaceable(card) {
     return card.cardType === 'meng' && card.stage === 'basic';
@@ -110,18 +60,9 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
     }
   }
 
-  function adjustEnergy(type, delta) {
-    setEnergyLoadout((current) => {
-      const next = Math.max(0, Math.min(MAX_ENERGY_PER_TYPE, (current[type] || 0) + delta));
-      return { ...current, [type]: next };
-    });
-  }
-
-  const totalEnergy = Object.values(energyLoadout).reduce((sum, n) => sum + n, 0);
-
   function handleSubmit() {
     if (!activeCardId) return;
-    engine.submitSetup(battle.battleId, activeCardId, benchCardIds, energyLoadout);
+    engine.submitSetup(battle.battleId, activeCardId, benchCardIds);
   }
 
   return (
@@ -170,54 +111,26 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
       )}
 
       <div className="mt-5">
-        <p className="text-xs font-bold text-zinc-500">
-          Choose your Energy — pick as much of each type as you want, for the whole game.
+        <p className="text-xs font-bold text-zinc-500">Your Energy</p>
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Automatic — every Pokemon type in your deck comes with {MAX_ENERGY_PER_TYPE} Energy of that type, no
+          picking needed.
         </p>
-        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-md border border-[var(--dex-accent-400)] bg-[var(--dex-accent-50)]" />
-          Highlighted = a Pokemon in your deck is this type — without at least some of this Energy, that Pokemon's
-          attacks won't be usable.
-        </p>
-        <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-          {POKEMON_TYPES.map((t) => {
-            const needed = neededTypes.has(t.value);
-            return (
-            <div
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {grantedTypes.map((t) => (
+            <span
               key={t.value}
-              className={`flex items-center justify-between gap-1 rounded-lg border px-2 py-1.5 ${
-                needed
-                  ? 'border-[var(--dex-accent-400)] bg-[var(--dex-accent-50)]'
-                  : 'border-zinc-200'
-              }`}
+              className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700"
             >
-              <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-zinc-700">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />
-                <span className="truncate">{t.label}</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <HoldButton onPress={() => adjustEnergy(t.value, -1)} ariaLabel={`Remove ${t.label} Energy`}>
-                  <Minus size={12} />
-                </HoldButton>
-                <span className="w-4 text-center text-xs font-bold text-zinc-800">
-                  {energyLoadout[t.value] || 0}
-                </span>
-                <HoldButton onPress={() => adjustEnergy(t.value, 1)} ariaLabel={`Add ${t.label} Energy`}>
-                  <Plus size={12} />
-                </HoldButton>
-              </span>
-            </div>
-            );
-          })}
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />
+              {t.label} &middot; {MAX_ENERGY_PER_TYPE}
+            </span>
+          ))}
         </div>
-        {totalEnergy === 0 && (
-          <p className="mt-2 text-center text-[11px] text-amber-600">
-            You haven't picked any Energy — you won't be able to power most attacks.
-          </p>
-        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between text-xs font-semibold text-zinc-500">
-        <span>Bench: {benchCardIds.length}/5 &middot; Energy: {totalEnergy}</span>
+        <span>Bench: {benchCardIds.length}/5</span>
         <button
           type="button"
           disabled={!activeCardId}

@@ -13,7 +13,7 @@ import {
   MIN_DECK_BASICS,
   MIN_REQUIRED_DECK_SIZE,
 } from './deckBuilder';
-import { validateEnergyLoadout } from './energyLoadout';
+import { computeAutoEnergyLoadout } from './energyLoadout';
 import { redactStateFor } from './battleRedaction';
 
 // PeerJS's default cloud broker (0.peerjs.com) is shared across every app
@@ -210,8 +210,8 @@ class LobbyEngine {
     this.send({ type: 'submit_deck', battleId, selectedCardIds });
   }
 
-  submitSetup(battleId, activeCardId, benchCardIds, energyLoadout) {
-    this.send({ type: 'submit_setup', battleId, activeCardId, benchCardIds, energyLoadout });
+  submitSetup(battleId, activeCardId, benchCardIds) {
+    this.send({ type: 'submit_setup', battleId, activeCardId, benchCardIds });
   }
 
   benchBasic(battleId, cardId) {
@@ -392,7 +392,13 @@ class LobbyEngine {
             mulliganCounts: match.mulliganCounts,
             active: { [pA]: null, [pB]: null },
             bench: { [pA]: [], [pB]: [] },
-            energyPools: { [pA]: null, [pB]: null },
+            // Derived from each player's own full deck selection, not
+            // chosen by them — every Pokemon type they picked comes with a
+            // full Energy pool of that type automatically.
+            energyPools: {
+              [pA]: computeAutoEnergyLoadout(battle.deckSelections[pA]),
+              [pB]: computeAutoEnergyLoadout(battle.deckSelections[pB]),
+            },
             setupChoices: { [pA]: null, [pB]: null },
             setupReady: { [pA]: false, [pB]: false },
             pendingChoice: [],
@@ -435,13 +441,9 @@ class LobbyEngine {
           .filter(Boolean);
         if (benchCards.length !== uniqueBenchIds.length) return;
 
-        const energyLoadout = validateEnergyLoadout(intent.energyLoadout);
-        if (!energyLoadout) return;
-
         battle.setupChoices[fromPeerId] = {
           activeCardId: activeCard.id,
           benchCardIds: benchCards.map((c) => c.id),
-          energyLoadout,
         };
         battle.setupReady[fromPeerId] = true;
         battle.log.push(`${battle.names[fromPeerId]} is ready.`);
@@ -464,7 +466,6 @@ class LobbyEngine {
             });
             battle.active[peerId] = chosenActive;
             battle.bench[peerId] = chosenBench;
-            battle.energyPools[peerId] = choice.energyLoadout;
           }
 
           battle.log.push('Both players are ready! Pokemon are revealed!');
