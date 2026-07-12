@@ -7,8 +7,8 @@ import NameEntry from './NameEntry';
 import Roster from './Roster';
 import BattleView from './BattleView';
 
-export default function LobbyPage({ mode, lobbyCode, dexId, onLeave }) {
-  const { snapshot, engine } = useLobbyEngine(mode, lobbyCode, dexId);
+export default function LobbyPage({ mode, lobbyCode, dexId, deckSize, onLeave }) {
+  const { snapshot, engine } = useLobbyEngine(mode, lobbyCode, dexId, deckSize);
   const { dex } = useDex(dexId);
   const [copied, setCopied] = useState(false);
   const [dismissedReason, setDismissedReason] = useState(null);

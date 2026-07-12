@@ -4,7 +4,13 @@ import { useDex } from '../hooks/useDex';
 import { useMembership } from '../hooks/useMembership';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { generateLobbyCode } from '../lobby/lobbyEngine';
-import { checkPoolLegality, MIN_DECK_SIZE, MIN_DECK_BASICS } from '../lobby/deckBuilder';
+import {
+  checkPoolLegality,
+  clampDeckSize,
+  DEFAULT_DECK_SIZE,
+  MIN_DECK_BASICS,
+  MIN_REQUIRED_DECK_SIZE,
+} from '../lobby/deckBuilder';
 import PokedexGrid from './PokedexGrid';
 import MengModal from './MengModal';
 import MengForm from './MengForm';
@@ -23,6 +29,8 @@ export default function DexView({ dexId, user, onBack, onOpenAuth, onOpenLobby }
   const [showEditDex, setShowEditDex] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showBattleRequirements, setShowBattleRequirements] = useState(false);
+  const [showDeckSizePicker, setShowDeckSizePicker] = useState(false);
+  const [deckSizeInput, setDeckSizeInput] = useState('');
 
   const poolLegality = useMemo(() => checkPoolLegality(entries), [entries]);
   const basicCount = poolLegality.cards.filter((c) => c.cardType === 'meng' && c.stage === 'basic').length;
@@ -43,7 +51,13 @@ export default function DexView({ dexId, user, onBack, onOpenAuth, onOpenLobby }
       setShowBattleRequirements(true);
       return;
     }
-    onOpenLobby(generateLobbyCode(), true);
+    setDeckSizeInput(String(clampDeckSize(DEFAULT_DECK_SIZE, poolLegality.cards.length)));
+    setShowDeckSizePicker(true);
+  }
+
+  function confirmCreateLobby() {
+    const deckSize = clampDeckSize(Number(deckSizeInput), poolLegality.cards.length);
+    onOpenLobby(generateLobbyCode(), true, deckSize);
   }
 
   if (error) {
@@ -177,12 +191,13 @@ export default function DexView({ dexId, user, onBack, onOpenAuth, onOpenLobby }
             <Swords className="mx-auto text-[var(--dex-accent-500)]" size={28} />
             <h2 className="mt-3 text-lg font-bold text-zinc-900">Not Ready to Battle Yet</h2>
             <p className="mt-2 text-sm text-zinc-600">
-              This dex needs at least {MIN_DECK_SIZE} battle-ready Pokemon/Trainer cards (with attacks, evolution
-              stage, etc. filled in), including {MIN_DECK_BASICS}+ Basic Pokemon, before a battle can start.
+              This dex needs at least {MIN_REQUIRED_DECK_SIZE} battle-ready Pokemon/Trainer cards (with attacks,
+              evolution stage, etc. filled in), including {MIN_DECK_BASICS}+ Basic Pokemon, before a battle can
+              start.
             </p>
             <p className="mt-2 text-xs font-semibold text-zinc-500">
-              Currently: {poolLegality.cards.length}/{MIN_DECK_SIZE} battle-ready cards, {basicCount}/{MIN_DECK_BASICS}{' '}
-              Basic Pokemon.
+              Currently: {poolLegality.cards.length}/{MIN_REQUIRED_DECK_SIZE} battle-ready cards, {basicCount}/
+              {MIN_DECK_BASICS} Basic Pokemon.
             </p>
             <button
               type="button"
@@ -191,6 +206,51 @@ export default function DexView({ dexId, user, onBack, onOpenAuth, onOpenLobby }
             >
               Got it
             </button>
+          </div>
+        </div>
+      )}
+
+      {showDeckSizePicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDeckSizePicker(false); }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <Swords className="mx-auto text-[var(--dex-accent-500)]" size={28} />
+            <h2 className="mt-3 text-center text-lg font-bold text-zinc-900">Deck Size</h2>
+            <p className="mt-2 text-center text-sm text-zinc-600">
+              Choose exactly how many cards each player must pick for their deck. Both players will pick this many
+              — no more, no less.
+            </p>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={MIN_REQUIRED_DECK_SIZE}
+              max={poolLegality.cards.length}
+              step="1"
+              value={deckSizeInput}
+              onChange={(e) => setDeckSizeInput(e.target.value)}
+              className="mt-4 w-full rounded-lg border border-zinc-300 px-3 py-2 text-center text-sm font-bold focus:border-[var(--dex-accent-500)] focus:outline-none focus:ring-2 focus:ring-[var(--dex-accent-100)]"
+            />
+            <p className="mt-1 text-center text-[11px] text-zinc-400">
+              Between {MIN_REQUIRED_DECK_SIZE} and {poolLegality.cards.length} (this dex's battle-ready card count).
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeckSizePicker(false)}
+                className="flex-1 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmCreateLobby}
+                className="flex-1 rounded-lg bg-[var(--dex-accent-600)] px-4 py-2 text-sm font-bold text-white hover:bg-[var(--dex-accent-700)]"
+              >
+                Create Lobby
+              </button>
+            </div>
           </div>
         </div>
       )}

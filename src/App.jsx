@@ -11,11 +11,13 @@ function parseLocation() {
     /^\/dex\/([A-Za-z0-9_-]+)\/lobby\/([A-Za-z0-9]+)$/
   );
   if (dexLobbyMatch) {
+    const params = new URLSearchParams(window.location.search);
     return {
       view: 'lobby',
       dexId: dexLobbyMatch[1],
       lobbyCode: dexLobbyMatch[2],
-      mode: new URLSearchParams(window.location.search).get('host') === '1' ? 'host' : 'guest',
+      mode: params.get('host') === '1' ? 'host' : 'guest',
+      deckSize: params.has('deckSize') ? Number(params.get('deckSize')) : undefined,
     };
   }
 
@@ -56,6 +58,7 @@ export default function App() {
         mode={route.mode}
         dexId={route.dexId}
         lobbyCode={route.lobbyCode}
+        deckSize={route.deckSize}
         onLeave={() => navigate(`/dex/${route.dexId}`)}
       />
     );
@@ -79,7 +82,11 @@ export default function App() {
             user={user}
             onBack={() => navigate('/')}
             onOpenAuth={() => setShowAuth(true)}
-            onOpenLobby={(code, host) => navigate(`/dex/${route.dexId}/lobby/${code}${host ? '?host=1' : ''}`)}
+            onOpenLobby={(code, host, deckSize) =>
+              navigate(
+                `/dex/${route.dexId}/lobby/${code}${host ? `?host=1&deckSize=${deckSize}` : ''}`
+              )
+            }
           />
         ) : (
           <DexList user={user} onOpenDex={(id) => navigate(`/dex/${id}`)} onOpenAuth={() => setShowAuth(true)} />

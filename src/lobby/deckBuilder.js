@@ -7,12 +7,22 @@
 // the same mulligan safety net as before. Energy is a separate, unlimited
 // per-type Setup-time choice — see energyLoadout.js — not part of the deck.
 
-// Per-player minimum: below this, even graceful hand/Prize scaling can't
-// produce a non-degenerate game (a real Bench needs a few Basics, not
-// just a lone Active, and there needs to be enough left over for a
-// Prize pile and a hand).
-export const MIN_DECK_SIZE = 6;
+// The host picks the exact deck size when creating the lobby (not a fixed
+// app-wide constant) — every player must then pick EXACTLY that many
+// cards, so both decks are always the same size and get identical
+// hand/Prize scaling. These are just the bounds on that choice.
 export const MIN_DECK_BASICS = 2;
+export const MIN_REQUIRED_DECK_SIZE = MIN_DECK_BASICS;
+export const DEFAULT_DECK_SIZE = 10;
+
+// Keeps the host's requested size sane: never below what a legal deck
+// needs, and — per the pool it'll actually be drawn from — never above
+// how many eligible cards exist, so the requirement can never be
+// impossible to meet.
+export function clampDeckSize(requested, poolSize) {
+  const n = Number.isFinite(requested) ? Math.floor(requested) : DEFAULT_DECK_SIZE;
+  return Math.max(MIN_REQUIRED_DECK_SIZE, Math.min(n, poolSize));
+}
 export const STARTING_HAND_SIZE = 7;
 export const PRIZE_COUNT = 6;
 export const MAX_DECK_SIZE = 60;
@@ -58,13 +68,13 @@ export function eligiblePool(pool) {
 export function checkPoolLegality(pool) {
   const cards = eligiblePool(pool);
   const basics = cards.filter(isBasic);
-  return { legal: cards.length >= MIN_DECK_SIZE && basics.length >= MIN_DECK_BASICS, cards };
+  return { legal: cards.length >= MIN_REQUIRED_DECK_SIZE && basics.length >= MIN_DECK_BASICS, cards };
 }
 
-// Does this specific player's selection meet the minimum to build a deck?
-export function checkSelectionLegality(selectedCards) {
+// Does this specific player's selection meet the host-chosen exact size?
+export function checkSelectionLegality(selectedCards, requiredDeckSize) {
   const basics = selectedCards.filter(isBasic);
-  return selectedCards.length >= MIN_DECK_SIZE && basics.length >= MIN_DECK_BASICS;
+  return selectedCards.length === requiredDeckSize && basics.length >= MIN_DECK_BASICS;
 }
 
 // Scales hand/Prize sizes down for small decks instead of always using the
@@ -129,8 +139,8 @@ function toInPlayInstance(card) {
 // Turns one player's manually-selected cards into a shuffled deck plus
 // dealt Prizes/hand, with the mulligan safety net. Returns
 // { legal: false } if the selection doesn't meet the minimum.
-export function buildPlayerDeck(selectedCards) {
-  if (!checkSelectionLegality(selectedCards)) return { legal: false };
+export function buildPlayerDeck(selectedCards, requiredDeckSize) {
+  if (!checkSelectionLegality(selectedCards, requiredDeckSize)) return { legal: false };
 
   let deck = shuffle(selectedCards).map(toInPlayInstance);
   if (deck.length > MAX_DECK_SIZE) deck = deck.slice(0, MAX_DECK_SIZE);
@@ -162,11 +172,11 @@ export function buildPlayerDeck(selectedCards) {
 // selections, then applies the opponent-mulligan bonus draw. Returns
 // { legal: false } if either player's own selection didn't meet the
 // per-player minimum.
-export function buildMatch(selections, players) {
+export function buildMatch(selections, players, requiredDeckSize) {
   const [playerA, playerB] = players;
   const built = {};
   for (const peerId of players) {
-    built[peerId] = buildPlayerDeck(selections[peerId] || []);
+    built[peerId] = buildPlayerDeck(selections[peerId] || [], requiredDeckSize);
     if (!built[peerId].legal) return { legal: false };
   }
 

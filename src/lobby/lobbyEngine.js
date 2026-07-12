@@ -8,9 +8,10 @@ import {
   buildMatch,
   checkPoolLegality,
   checkSelectionLegality,
+  clampDeckSize,
   eligiblePool,
-  MIN_DECK_SIZE,
   MIN_DECK_BASICS,
+  MIN_REQUIRED_DECK_SIZE,
 } from './deckBuilder';
 import { validateEnergyLoadout } from './energyLoadout';
 import { redactStateFor } from './battleRedaction';
@@ -62,10 +63,14 @@ async function fetchCardPool(dexId) {
 }
 
 class LobbyEngine {
-  constructor(role, lobbyCode, dexId) {
+  constructor(role, lobbyCode, dexId, deckSize) {
     this.role = role; // 'host' | 'guest'
     this.lobbyCode = lobbyCode;
     this.dexId = dexId;
+    // Only meaningful for the host — the exact deck size they chose when
+    // creating the lobby, clamped against each Dex's actual pool size at
+    // battle time (see clampDeckSize in deckBuilder.js).
+    this.deckSize = deckSize;
     this.peer = null;
     this.myPeerId = null;
     this.hostConn = null; // guest only
@@ -116,8 +121,8 @@ class LobbyEngine {
 
   // ---- connection setup ----
 
-  static createHost(lobbyCode, dexId) {
-    const engine = new LobbyEngine('host', lobbyCode, dexId);
+  static createHost(lobbyCode, dexId, deckSize) {
+    const engine = new LobbyEngine('host', lobbyCode, dexId, deckSize);
     const peer = new Peer(PEER_PREFIX + lobbyCode);
     engine.peer = peer;
 
@@ -320,15 +325,17 @@ class LobbyEngine {
           if (!legal) {
             delete this.state.battles[intent.battleId];
             this.state.lastAbortReason =
-              `This Dex needs at least ${MIN_DECK_SIZE} battle-ready cards (with attacks/stage set), including ${MIN_DECK_BASICS}+ Basic Pokemon, to build a deck.`;
+              `This Dex needs at least ${MIN_REQUIRED_DECK_SIZE} battle-ready cards (with attacks/stage set), including ${MIN_DECK_BASICS}+ Basic Pokemon, to build a deck.`;
             this._broadcast();
             return;
           }
 
+          const requiredDeckSize = clampDeckSize(this.deckSize, cards.length);
           const [pA, pB] = battle.players;
           Object.assign(battle, {
             phase: 'deckbuild',
             cardPool: cards,
+            requiredDeckSize,
             deckSelections: { [pA]: null, [pB]: null },
             deckReady: { [pA]: false, [pB]: false },
             log: [],
@@ -355,7 +362,7 @@ class LobbyEngine {
           .map((id) => battle.cardPool.find((c) => c.id === id))
           .filter(Boolean);
         if (selectedCards.length !== requestedIds.length) return;
-        if (!checkSelectionLegality(selectedCards)) return;
+        if (!checkSelectionLegality(selectedCards, battle.requiredDeckSize)) return;
 
         battle.deckSelections[fromPeerId] = selectedCards;
         battle.deckReady[fromPeerId] = true;
@@ -363,7 +370,7 @@ class LobbyEngine {
 
         const [pA, pB] = battle.players;
         if (battle.deckReady[pA] && battle.deckReady[pB]) {
-          const match = buildMatch(battle.deckSelections, battle.players);
+          const match = buildMatch(battle.deckSelections, battle.players, battle.requiredDeckSize);
           if (!match.legal) {
             // Shouldn't happen — both selections already passed
             // checkSelectionLegality individually — but guard defensively
