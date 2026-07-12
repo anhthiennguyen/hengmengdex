@@ -2,10 +2,14 @@
 // independently picks whichever Pokemon/Trainer cards they want from the
 // full Dex pool (overlap with the opponent's picks is fine — these are
 // two separate personal decks, not a shared pool being split) via
-// lobbyEngine.js's submit_deck intent. This module just takes that
-// selection and turns it into a shuffled deck + dealt Prizes/hand, with
-// the same mulligan safety net as before. Energy is a separate, unlimited
-// per-type Setup-time choice — see energyLoadout.js — not part of the deck.
+// lobbyEngine.js's submit_deck intent. This module takes that selection,
+// synthesizes Energy cards for it (see energyLoadout.js), and turns the
+// combined pile into a shuffled deck + dealt Prizes/hand, with a mulligan
+// safety net. Energy is shuffled into the deck and drawn like any other
+// card — matching the real TCG, where you can't just fetch the exact
+// Energy you need on demand.
+
+import { synthesizeEnergyCards } from './energyLoadout';
 
 // The host picks the exact deck size when creating the lobby (not a fixed
 // app-wide constant) — every player must then pick EXACTLY that many
@@ -142,7 +146,8 @@ function toInPlayInstance(card) {
 export function buildPlayerDeck(selectedCards, requiredDeckSize) {
   if (!checkSelectionLegality(selectedCards, requiredDeckSize)) return { legal: false };
 
-  let deck = shuffle(selectedCards).map(toInPlayInstance);
+  const energyCards = synthesizeEnergyCards(selectedCards);
+  let deck = shuffle([...selectedCards, ...energyCards]).map(toInPlayInstance);
   if (deck.length > MAX_DECK_SIZE) deck = deck.slice(0, MAX_DECK_SIZE);
 
   const { prizeCount, handSize } = scaledZones(deck.length);

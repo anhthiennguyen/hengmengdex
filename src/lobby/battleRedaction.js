@@ -1,6 +1,7 @@
-// Hides hidden-information zones (deck, hand, prizes, Energy pool, and —
-// while a player is mid-pick — their not-yet-submitted deck selection or
-// Active/Bench choice) from everyone except the player who owns them.
+// Hides hidden-information zones (deck, hand, prizes — Energy cards are
+// just regular cards inside those, no separate zone — and, while a player
+// is mid-pick, their not-yet-submitted deck selection or Active/Bench
+// choice) from everyone except the player who owns them.
 // lobbyEngine.js's _broadcast() calls this once per connection, so each
 // peer gets a state snapshot redacted from their own point of view; the
 // host must read its own local UI through this too, never raw
@@ -24,16 +25,6 @@ function redactBattle(battle, viewerPeerId) {
       next.prizePiles[peerId] = isViewer
         ? battle.prizePiles[peerId]
         : { count: battle.prizePiles[peerId].length };
-    }
-  }
-
-  if (battle.energyPools) {
-    next.energyPools = {};
-    for (const peerId of battle.players) {
-      const isViewer = peerId === viewerPeerId;
-      const pool = battle.energyPools[peerId];
-      const total = Object.values(pool || {}).reduce((sum, n) => sum + n, 0);
-      next.energyPools[peerId] = isViewer ? pool : { count: total };
     }
   }
 

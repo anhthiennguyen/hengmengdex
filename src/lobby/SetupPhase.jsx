@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
-import { POKEMON_TYPES } from '../lib/pokemonTypes';
-import { MAX_ENERGY_PER_TYPE } from './energyLoadout';
 import MengCardTile from './MengCardTile';
 
 export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
@@ -31,11 +29,6 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
   // shouldn't re-hide most of it behind a small random "hand" slice.
   const allCards = [...(battle.hands?.[myPeerId] ?? []), ...(battle.decks?.[myPeerId] ?? [])];
   const basics = allCards.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
-
-  // Energy is no longer picked here — it's auto-granted per type based on
-  // the whole deck the player already built (see energyPools, computed at
-  // deckbuild time). This is just a read-only summary of that grant.
-  const grantedTypes = POKEMON_TYPES.filter((t) => (battle.energyPools?.[myPeerId]?.[t.value] || 0) > 0);
 
   function isPlaceable(card) {
     return card.cardType === 'meng' && card.stage === 'basic';
@@ -69,8 +62,9 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
     <div>
       <h2 className="text-center text-lg font-bold text-zinc-900">Choose Your Team</h2>
       <p className="mt-1 text-center text-xs text-zinc-500">
-        This is everything from the deck you built. Tap a Basic Pokemon for your Active spot first, then up to 5
-        more for your Bench — everything else stays in your hand for later.
+        This is everything from the deck you built, including Energy cards shuffled in for the Pokemon types you
+        picked. Tap a Basic Pokemon for your Active spot first, then up to 5 more for your Bench — everything else
+        stays in your hand for later.
       </p>
 
       <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
@@ -109,25 +103,6 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
           Your deck has no Basic Pokemon, which shouldn't happen after the mulligan check. Contact the host.
         </p>
       )}
-
-      <div className="mt-5">
-        <p className="text-xs font-bold text-zinc-500">Your Energy</p>
-        <p className="mt-1 text-[11px] text-zinc-400">
-          Automatic — every Pokemon type in your deck comes with {MAX_ENERGY_PER_TYPE} Energy of that type, no
-          picking needed.
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {grantedTypes.map((t) => (
-            <span
-              key={t.value}
-              className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700"
-            >
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />
-              {t.label} &middot; {MAX_ENERGY_PER_TYPE}
-            </span>
-          ))}
-        </div>
-      </div>
 
       <div className="mt-4 flex items-center justify-between text-xs font-semibold text-zinc-500">
         <span>Bench: {benchCardIds.length}/5</span>

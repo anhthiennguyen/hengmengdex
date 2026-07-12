@@ -13,7 +13,6 @@ import {
   MIN_DECK_BASICS,
   MIN_REQUIRED_DECK_SIZE,
 } from './deckBuilder';
-import { computeAutoEnergyLoadout } from './energyLoadout';
 import { redactStateFor } from './battleRedaction';
 
 // PeerJS's default cloud broker (0.peerjs.com) is shared across every app
@@ -218,8 +217,8 @@ class LobbyEngine {
     this.send({ type: 'bench_basic', battleId, cardId });
   }
 
-  attachEnergy(battleId, energyType, targetInPlayCardId) {
-    this.send({ type: 'attach_energy', battleId, energyType, targetInPlayCardId });
+  attachEnergy(battleId, cardId, targetInPlayCardId) {
+    this.send({ type: 'attach_energy', battleId, cardId, targetInPlayCardId });
   }
 
   retreat(battleId, benchCardId, energyIdsToDiscard) {
@@ -392,13 +391,6 @@ class LobbyEngine {
             mulliganCounts: match.mulliganCounts,
             active: { [pA]: null, [pB]: null },
             bench: { [pA]: [], [pB]: [] },
-            // Derived from each player's own full deck selection, not
-            // chosen by them — every Pokemon type they picked comes with a
-            // full Energy pool of that type automatically.
-            energyPools: {
-              [pA]: computeAutoEnergyLoadout(battle.deckSelections[pA]),
-              [pB]: computeAutoEnergyLoadout(battle.deckSelections[pB]),
-            },
             setupChoices: { [pA]: null, [pB]: null },
             setupReady: { [pA]: false, [pB]: false },
             pendingChoice: [],
@@ -512,9 +504,9 @@ class LobbyEngine {
         if (!battle || battle.phase !== 'battle' || battle.turn !== fromPeerId || battle.pendingChoice.length) return;
         if (battle.energyAttachedThisTurn[fromPeerId]) return;
 
-        const pool = battle.energyPools[fromPeerId];
-        const energyType = intent.energyType;
-        if (!pool || !(pool[energyType] > 0)) return;
+        const hand = battle.hands[fromPeerId];
+        const idx = hand.findIndex((c) => c.id === intent.cardId && c.cardType === 'energy');
+        if (idx === -1) return;
 
         const target =
           battle.active[fromPeerId]?.id === intent.targetInPlayCardId
@@ -522,11 +514,10 @@ class LobbyEngine {
             : battle.bench[fromPeerId].find((c) => c.id === intent.targetInPlayCardId);
         if (!target) return;
 
-        pool[energyType] -= 1;
-        const energyId = `energy-${energyType}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-        target.attachedEnergy.push({ id: energyId, energyType });
+        const [energyCard] = hand.splice(idx, 1);
+        target.attachedEnergy.push({ id: energyCard.id, energyType: energyCard.energyType });
         battle.energyAttachedThisTurn[fromPeerId] = true;
-        battle.log.push(`${battle.names[fromPeerId]} attached ${energyType} Energy to ${target.name}.`);
+        battle.log.push(`${battle.names[fromPeerId]} attached ${energyCard.energyType} Energy to ${target.name}.`);
         this._broadcast();
         break;
       }
