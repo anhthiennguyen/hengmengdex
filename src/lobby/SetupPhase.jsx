@@ -129,6 +129,11 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
         <p className="text-xs font-bold text-zinc-500">
           Choose your Energy — pick as much of each type as you want, for the whole game.
         </p>
+        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-md border border-[var(--dex-accent-400)] bg-[var(--dex-accent-50)]" />
+          Highlighted = a Pokemon in your deck is this type — without at least some of this Energy, that Pokemon's
+          attacks won't be usable.
+        </p>
         <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
           {POKEMON_TYPES.map((t) => {
             const needed = neededTypes.has(t.value);
