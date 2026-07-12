@@ -161,6 +161,11 @@ export function startTurn(battle, peerId) {
     // WHICH card it was (their opponent's draw is still hidden info) —
     // battleRedaction.js resolves this into the right text per viewer.
     logs.push({ type: 'draw', peerId, playerName: battle.names[peerId], cardName: drawn.name });
+  } else {
+    // Deck-out isn't a loss condition here (removed on purpose), so this
+    // is a real, reachable state — without a log line it just looks like
+    // drawing silently stopped working.
+    logs.push(`${battle.names[peerId]}'s deck is empty — no card to draw this turn.`);
   }
 
   const opponentId = battle.players.find((p) => p !== peerId);
