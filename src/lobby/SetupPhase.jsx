@@ -132,7 +132,7 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
         more for your Bench — everything else stays in your hand for later.
       </p>
 
-      <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
         {allCards.map((card) => {
           const placeable = isPlaceable(card);
           return (

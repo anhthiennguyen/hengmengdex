@@ -37,32 +37,30 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
   if (battle.phase === 'pending') {
     const iAmChallenger = battle.challenger === myPeerId;
     return (
-      <Overlay>
-        <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <Loader2 className="animate-spin text-[var(--dex-accent-500)]" size={28} />
-          <p className="text-sm font-semibold text-zinc-700">
-            {iAmChallenger
-              ? `Waiting for ${opponentName} to accept…`
-              : `${myName}, respond to the challenge from the lobby screen.`}
-          </p>
-        </div>
-      </Overlay>
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <Loader2 className="animate-spin text-[var(--dex-accent-500)]" size={28} />
+        <p className="text-sm font-semibold text-zinc-700">
+          {iAmChallenger
+            ? `Waiting for ${opponentName} to accept…`
+            : `${myName}, respond to the challenge from the lobby screen.`}
+        </p>
+      </div>
     );
   }
 
   if (battle.phase === 'deckbuild') {
     return (
-      <Overlay wide>
+      <PhaseCard>
         <DeckBuildPhase battle={battle} myPeerId={myPeerId} opponentName={opponentName} engine={engine} />
-      </Overlay>
+      </PhaseCard>
     );
   }
 
   if (battle.phase === 'setup') {
     return (
-      <Overlay wide>
+      <PhaseCard>
         <SetupPhase battle={battle} myPeerId={myPeerId} opponentName={opponentName} engine={engine} />
-      </Overlay>
+      </PhaseCard>
     );
   }
 
@@ -80,9 +78,9 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
 
     if (myPendingChoice) {
       return (
-        <Overlay wide>
+        <PhaseCard>
           <h2 className="text-center text-lg font-bold text-zinc-900">Choose Your Next Pokemon!</h2>
-          <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
             {myBench.map((card) => (
               <MengCardTile
                 key={card.id}
@@ -93,7 +91,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             ))}
           </div>
           <LogPanel log={battle.log} />
-        </Overlay>
+        </PhaseCard>
       );
     }
 
@@ -143,7 +141,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
     }
 
     return (
-      <Overlay wide>
+      <PhaseCard>
         <h2 className="text-center text-lg font-bold text-zinc-900">Battle!</h2>
 
         <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-zinc-500">
@@ -253,7 +251,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             )}
             {mode === 'attach' && attachEnergyType && (
               <SubPanel title="Choose a Pokemon to attach it to">
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                   {[myActive, ...myBench].filter(Boolean).map((card) => (
                     <MengCardTile key={card.id} card={card} showHp onClick={() => attachTarget(card)} />
                   ))}
@@ -270,7 +268,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
                 }
               >
                 {!retreatBenchId ? (
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                     {myBench.map((card) => (
                       <MengCardTile key={card.id} card={card} showHp onClick={() => selectRetreatTarget(card)} />
                     ))}
@@ -319,7 +317,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
 
             {mode === 'evolve' && (
               <SubPanel title="Choose an evolution card">
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                   {myEvolutions.map((card) => {
                     const target = evolutionTarget(card);
                     return (
@@ -345,7 +343,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             {(myItems.length > 0 || mySupporters.length > 0) && (
               <div className="mt-3">
                 <p className="mb-1.5 text-xs font-bold text-zinc-500">Your Trainer cards</p>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                   {myItems.map((card) => (
                     <MengCardTile
                       key={card.id}
@@ -383,7 +381,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
         )}
 
         <LogPanel log={battle.log} />
-      </Overlay>
+      </PhaseCard>
     );
   }
 
@@ -391,8 +389,8 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
     const isDraw = battle.winner === null || battle.winner === undefined;
     const iWon = battle.winner === myPeerId;
     return (
-      <Overlay>
-        <div className="flex flex-col items-center gap-2 py-4 text-center">
+      <PhaseCard>
+        <div className="flex flex-col items-center gap-2 py-8 text-center">
           <Trophy className="text-[var(--dex-accent-500)]" size={32} />
           <h2 className="text-lg font-bold text-zinc-900">
             {isDraw ? "It's a draw!" : iWon ? 'You won!' : `${battle.names[battle.winner]} wins!`}
@@ -405,21 +403,17 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             Back to Lobby
           </button>
         </div>
-      </Overlay>
+      </PhaseCard>
     );
   }
 
   return null;
 }
 
-function Overlay({ children, wide }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className={`max-h-[90vh] w-full overflow-y-auto ${wide ? 'max-w-lg' : 'max-w-sm'} rounded-2xl bg-white p-6 shadow-2xl`}>
-        {children}
-      </div>
-    </div>
-  );
+// Plain content wrapper for each battle phase — LobbyPage.jsx renders this
+// inside its own full-page Shell, so this no longer needs to be a modal.
+function PhaseCard({ children }) {
+  return <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">{children}</div>;
 }
 
 function LogPanel({ log }) {
@@ -452,7 +446,7 @@ function BenchRow({ cards, onSelect, onSelectRetreat, highlightId }) {
 
 function TileGrid({ cards, onSelect }) {
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
       {cards.map((card) => (
         <MengCardTile key={card.id} card={card} onClick={() => onSelect(card)} />
       ))}

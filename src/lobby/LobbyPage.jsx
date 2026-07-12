@@ -73,6 +73,22 @@ export default function LobbyPage({ mode, lobbyCode, dexId, onLeave }) {
     (b) => b.phase === 'pending' && b.challenger !== myPeerId
   );
 
+  // Once a battle actually gets going (past the brief "waiting to accept"
+  // moment), it takes over as its own full page instead of a cramped popup
+  // on top of the roster — deck-building and battling need real room.
+  if (activeBattle && activeBattle.phase !== 'pending') {
+    return (
+      <Shell wide onLeave={onLeave} dexName={dex?.name} dexColor={dex?.color}>
+        <BattleView
+          battle={activeBattle}
+          myPeerId={myPeerId}
+          engine={engine}
+          onClose={() => engine.send({ type: 'battle_ack', battleId: activeBattle.battleId })}
+        />
+      </Shell>
+    );
+  }
+
   return (
     <Shell onLeave={onLeave} dexName={dex?.name} dexColor={dex?.color}>
       <div className="mb-4 flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2">
@@ -110,21 +126,23 @@ export default function LobbyPage({ mode, lobbyCode, dexId, onLeave }) {
       />
 
       {activeBattle && (
-        <BattleView
-          battle={activeBattle}
-          myPeerId={myPeerId}
-          engine={engine}
-          onClose={() => engine.send({ type: 'battle_ack', battleId: activeBattle.battleId })}
-        />
+        <div className="mt-4">
+          <BattleView
+            battle={activeBattle}
+            myPeerId={myPeerId}
+            engine={engine}
+            onClose={() => engine.send({ type: 'battle_ack', battleId: activeBattle.battleId })}
+          />
+        </div>
       )}
     </Shell>
   );
 }
 
-function Shell({ children, onLeave, dexName, dexColor }) {
+function Shell({ children, onLeave, dexName, dexColor, wide }) {
   return (
     <DexThemeProvider color={dexColor ?? '#4169e1'}>
-      <div className="mx-auto max-w-md px-4 py-10">
+      <div className={`mx-auto px-4 py-10 ${wide ? 'max-w-4xl' : 'max-w-md'}`}>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-lg font-extrabold text-zinc-900">
             Battle Lobby{dexName ? `: ${dexName}` : ''}
@@ -138,7 +156,7 @@ function Shell({ children, onLeave, dexName, dexColor }) {
             Leave
           </button>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">{children}</div>
+        {wide ? children : <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">{children}</div>}
       </div>
     </DexThemeProvider>
   );

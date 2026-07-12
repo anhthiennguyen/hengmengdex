@@ -44,7 +44,7 @@ export default function DeckBuildPhase({ battle, myPeerId, opponentName, engine 
         including {MIN_DECK_BASICS}+ Basic Pokemon.
       </p>
 
-      <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
         {pool.map((card) => (
           <MengCardTile
             key={card.id}
