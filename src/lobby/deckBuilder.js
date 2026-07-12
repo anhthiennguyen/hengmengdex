@@ -68,14 +68,18 @@ export function checkSelectionLegality(selectedCards) {
 }
 
 // Scales hand/Prize sizes down for small decks instead of always using the
-// real game's fixed 7/6. Hand size is prioritized FIRST (up to the real 7),
-// since a thin hand makes Setup barely playable. Deck-out is no longer a
-// loss condition, so there's no need to defensively reserve cards against
-// it — an empty deck just means no more draws, not a loss.
+// real game's fixed 7/6. Prizes get a floor of 2 (never 1) — with only 1
+// Prize, a single Knock Out instantly wins the game, which feels just as
+// abrupt/"random" as the early bugs this whole system was built to avoid.
+// Hand gets whatever's left after Prizes (up to the real 7), since a thin
+// hand makes Setup barely playable. Deck-out is no longer a loss
+// condition, so there's no need to defensively reserve cards against it —
+// an empty deck just means no more draws, not a loss.
 function scaledZones(totalCards) {
-  const handSize = Math.max(1, Math.min(STARTING_HAND_SIZE, totalCards - 2));
-  const afterHand = totalCards - handSize;
-  const prizeCount = Math.max(0, Math.min(PRIZE_COUNT, afterHand - 1));
+  const rawPrizeCount = Math.max(2, Math.floor(totalCards / 3));
+  const prizeCount = Math.max(0, Math.min(PRIZE_COUNT, Math.min(rawPrizeCount, totalCards - 1)));
+  const afterPrizes = totalCards - prizeCount;
+  const handSize = Math.max(1, Math.min(STARTING_HAND_SIZE, afterPrizes));
   return { prizeCount, handSize };
 }
 
