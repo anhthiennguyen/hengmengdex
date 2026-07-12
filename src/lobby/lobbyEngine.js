@@ -411,8 +411,12 @@ class LobbyEngine {
         if (!battle || battle.phase !== 'setup' || !battle.players.includes(fromPeerId)) return;
         if (battle.setupReady[fromPeerId]) return;
 
-        const hand = battle.hands[fromPeerId];
-        const activeCard = hand.find(
+        // Pickable from BOTH hand and deck (everything except the hidden
+        // Prize pile) — the player already hand-picked their whole deck in
+        // deckbuild, so Setup shouldn't re-hide most of it behind a small
+        // random "hand" slice.
+        const pickable = [...battle.hands[fromPeerId], ...battle.decks[fromPeerId]];
+        const activeCard = pickable.find(
           (c) => c.id === intent.activeCardId && c.cardType === 'meng' && c.stage === 'basic'
         );
         if (!activeCard) return;
@@ -420,7 +424,7 @@ class LobbyEngine {
         const requestedBenchIds = Array.isArray(intent.benchCardIds) ? intent.benchCardIds.slice(0, 5) : [];
         const uniqueBenchIds = [...new Set(requestedBenchIds)].filter((id) => id !== activeCard.id);
         const benchCards = uniqueBenchIds
-          .map((id) => hand.find((c) => c.id === id && c.cardType === 'meng' && c.stage === 'basic'))
+          .map((id) => pickable.find((c) => c.id === id && c.cardType === 'meng' && c.stage === 'basic'))
           .filter(Boolean);
         if (benchCards.length !== uniqueBenchIds.length) return;
 
@@ -439,12 +443,12 @@ class LobbyEngine {
         if (battle.setupReady[pA] && battle.setupReady[pB]) {
           for (const peerId of battle.players) {
             const choice = battle.setupChoices[peerId];
-            const pHand = battle.hands[peerId];
-            const chosenActive = pHand.find((c) => c.id === choice.activeCardId);
-            const chosenBench = choice.benchCardIds.map((id) => pHand.find((c) => c.id === id));
-            battle.hands[peerId] = pHand.filter(
-              (c) => c.id !== choice.activeCardId && !choice.benchCardIds.includes(c.id)
-            );
+            const pPickable = [...battle.hands[peerId], ...battle.decks[peerId]];
+            const chosenActive = pPickable.find((c) => c.id === choice.activeCardId);
+            const chosenBench = choice.benchCardIds.map((id) => pPickable.find((c) => c.id === id));
+            const chosenIds = new Set([choice.activeCardId, ...choice.benchCardIds]);
+            battle.hands[peerId] = battle.hands[peerId].filter((c) => !chosenIds.has(c.id));
+            battle.decks[peerId] = battle.decks[peerId].filter((c) => !chosenIds.has(c.id));
             chosenActive.hasEnteredPlay = true;
             chosenActive.enteredPlayOnTurn = 0;
             chosenBench.forEach((c) => {

@@ -27,8 +27,11 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
     );
   }
 
-  const hand = battle.hands?.[myPeerId] ?? [];
-  const basics = hand.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
+  // Everything the player picked in deckbuild, except the hidden Prize
+  // pile — the player already hand-picked their whole deck, so this
+  // shouldn't re-hide most of it behind a small random "hand" slice.
+  const allCards = [...(battle.hands?.[myPeerId] ?? []), ...(battle.decks?.[myPeerId] ?? [])];
+  const basics = allCards.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
 
   function isPlaceable(card) {
     return card.cardType === 'meng' && card.stage === 'basic';
@@ -71,12 +74,12 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
     <div>
       <h2 className="text-center text-lg font-bold text-zinc-900">Choose Your Team</h2>
       <p className="mt-1 text-center text-xs text-zinc-500">
-        This is your whole hand. Tap a Basic Pokemon for your Active spot first, then up to 5 more for your Bench —
-        everything else stays in your hand for later.
+        This is everything from the deck you built. Tap a Basic Pokemon for your Active spot first, then up to 5
+        more for your Bench — everything else stays in your hand for later.
       </p>
 
       <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {hand.map((card) => {
+        {allCards.map((card) => {
           const placeable = isPlaceable(card);
           return (
             <div key={card.id} className="relative">
@@ -108,7 +111,7 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
 
       {basics.length === 0 && (
         <p className="mt-4 text-center text-xs text-amber-600">
-          Your hand has no Basic Pokemon, which shouldn't happen after the mulligan check. Contact the host.
+          Your deck has no Basic Pokemon, which shouldn't happen after the mulligan check. Contact the host.
         </p>
       )}
 
