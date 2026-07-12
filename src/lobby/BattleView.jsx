@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Trophy, Flag, Layers, Zap, ArrowLeftRight, Sparkles as SparklesIcon } from 'lucide-react';
+import { Loader2, Trophy, Flag, Layers, Zap, ArrowLeftRight, Sparkles as SparklesIcon, Hand, X } from 'lucide-react';
 import MengCardTile from './MengCardTile';
 import ActivePokemonPanel from './ActivePokemonPanel';
 import DeckBuildPhase from './DeckBuildPhase';
 import SetupPhase from './SetupPhase';
+import MengModal from '../components/MengModal';
 
 function zoneCount(zone) {
   return Array.isArray(zone) ? zone.length : zone?.count ?? 0;
@@ -18,6 +19,8 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
   const [attachEnergyCardId, setAttachEnergyCardId] = useState(null);
   const [retreatBenchId, setRetreatBenchId] = useState(null);
   const [retreatEnergyIds, setRetreatEnergyIds] = useState([]);
+  const [showHand, setShowHand] = useState(false);
+  const [viewingHandCard, setViewingHandCard] = useState(null);
 
   function changeMode(next) {
     setMode((current) => (current === next ? null : next));
@@ -140,7 +143,18 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
 
     return (
       <PhaseCard>
-        <h2 className="text-center text-lg font-bold text-zinc-900">Battle!</h2>
+        <div className="flex items-center justify-between">
+          <div className="w-16" />
+          <h2 className="text-center text-lg font-bold text-zinc-900">Battle!</h2>
+          <button
+            type="button"
+            onClick={() => setShowHand(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-2.5 py-1.5 text-xs font-bold text-zinc-600 hover:bg-zinc-50"
+          >
+            <Hand size={14} />
+            View Hand
+          </button>
+        </div>
 
         <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-zinc-500">
           <span>
@@ -152,6 +166,17 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             Energy in hand {myEnergyCards.length}
           </span>
         </div>
+
+        {showHand && (
+          <HandViewer
+            hand={myHand}
+            onClose={() => setShowHand(false)}
+            onSelectCard={(card) => setViewingHandCard(card)}
+          />
+        )}
+        {viewingHandCard && (
+          <MengModal meng={viewingHandCard} canManage={false} onClose={() => setViewingHandCard(null)} />
+        )}
 
         <div className="mt-3 grid grid-cols-2 gap-4">
           <ActivePokemonPanel card={oppActive} label={opponentName} canAttack={false} />
@@ -409,6 +434,66 @@ function LogPanel({ log }) {
       {(log || []).slice(-12).map((line, i) => (
         <div key={i}>{line}</div>
       ))}
+    </div>
+  );
+}
+
+function HandViewer({ hand, onClose, onSelectCard }) {
+  const energyCards = hand.filter((c) => c.cardType === 'energy');
+  const pokemonCards = hand.filter((c) => c.cardType === 'meng');
+  const trainerCards = hand.filter((c) => c.cardType === 'trainer');
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-zinc-900">Your Hand</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <p className="mb-1.5 text-xs font-bold text-zinc-500">Energy ({energyCards.length})</p>
+        {energyCards.length > 0 ? (
+          <div className="mb-4 grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+            {energyCards.map((card) => (
+              <MengCardTile key={card.id} card={card} />
+            ))}
+          </div>
+        ) : (
+          <p className="mb-4 text-xs text-zinc-400">No Energy cards in hand right now.</p>
+        )}
+
+        <p className="mb-1.5 text-xs font-bold text-zinc-500">Pokemon ({pokemonCards.length})</p>
+        {pokemonCards.length > 0 ? (
+          <div className="mb-4 grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+            {pokemonCards.map((card) => (
+              <MengCardTile key={card.id} card={card} onClick={() => onSelectCard(card)} />
+            ))}
+          </div>
+        ) : (
+          <p className="mb-4 text-xs text-zinc-400">No Pokemon cards in hand right now.</p>
+        )}
+
+        <p className="mb-1.5 text-xs font-bold text-zinc-500">Trainer ({trainerCards.length})</p>
+        {trainerCards.length > 0 ? (
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+            {trainerCards.map((card) => (
+              <MengCardTile key={card.id} card={card} onClick={() => onSelectCard(card)} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-400">No Trainer cards in hand right now.</p>
+        )}
+      </div>
     </div>
   );
 }
