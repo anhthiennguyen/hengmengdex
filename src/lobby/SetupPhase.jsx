@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, Minus, Plus } from 'lucide-react';
+import { POKEMON_TYPES } from '../lib/pokemonTypes';
+import { MAX_ENERGY_PER_TYPE } from './energyLoadout';
 import MengCardTile from './MengCardTile';
 
 export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
   const [activeCardId, setActiveCardId] = useState(null);
   const [benchCardIds, setBenchCardIds] = useState([]);
+  const [energyLoadout, setEnergyLoadout] = useState({});
 
   const myReady = !!battle.setupReady?.[myPeerId];
   const opponentId = battle.players.find((p) => p !== myPeerId);
@@ -27,7 +30,12 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
   const hand = battle.hands?.[myPeerId] ?? [];
   const basics = hand.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
 
+  function isPlaceable(card) {
+    return card.cardType === 'meng' && card.stage === 'basic';
+  }
+
   function toggleCard(card) {
+    if (!isPlaceable(card)) return;
     if (card.id === activeCardId) {
       setActiveCardId(null);
       return;
@@ -45,38 +53,57 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
     }
   }
 
+  function adjustEnergy(type, delta) {
+    setEnergyLoadout((current) => {
+      const next = Math.max(0, Math.min(MAX_ENERGY_PER_TYPE, (current[type] || 0) + delta));
+      return { ...current, [type]: next };
+    });
+  }
+
+  const totalEnergy = Object.values(energyLoadout).reduce((sum, n) => sum + n, 0);
+
   function handleSubmit() {
     if (!activeCardId) return;
-    engine.submitSetup(battle.battleId, activeCardId, benchCardIds);
+    engine.submitSetup(battle.battleId, activeCardId, benchCardIds, energyLoadout);
   }
 
   return (
     <div>
       <h2 className="text-center text-lg font-bold text-zinc-900">Choose Your Team</h2>
       <p className="mt-1 text-center text-xs text-zinc-500">
-        Tap a Basic Pokemon for your Active spot first, then up to 5 more for your Bench.
+        This is your whole hand. Tap a Basic Pokemon for your Active spot first, then up to 5 more for your Bench —
+        everything else stays in your hand for later.
       </p>
 
       <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {basics.map((card) => (
-          <div key={card.id} className="relative">
-            {card.id === activeCardId && (
-              <span className="absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--dex-accent-600)] px-1.5 py-0.5 text-[9px] font-bold text-white">
-                Active
-              </span>
-            )}
-            {benchCardIds.includes(card.id) && (
-              <span className="absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-zinc-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                Bench
-              </span>
-            )}
-            <MengCardTile
-              card={card}
-              selected={card.id === activeCardId || benchCardIds.includes(card.id)}
-              onClick={() => toggleCard(card)}
-            />
-          </div>
-        ))}
+        {hand.map((card) => {
+          const placeable = isPlaceable(card);
+          return (
+            <div key={card.id} className="relative">
+              {card.id === activeCardId && (
+                <span className="absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--dex-accent-600)] px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  Active
+                </span>
+              )}
+              {benchCardIds.includes(card.id) && (
+                <span className="absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-zinc-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  Bench
+                </span>
+              )}
+              {!placeable && (
+                <span className="absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-zinc-300 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600">
+                  In Hand
+                </span>
+              )}
+              <MengCardTile
+                card={card}
+                selected={card.id === activeCardId || benchCardIds.includes(card.id)}
+                disabled={!placeable}
+                onClick={placeable ? () => toggleCard(card) : undefined}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {basics.length === 0 && (
@@ -85,8 +112,53 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
         </p>
       )}
 
+      <div className="mt-5">
+        <p className="text-xs font-bold text-zinc-500">
+          Choose your Energy — pick as much of each type as you want, for the whole game.
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {POKEMON_TYPES.map((t) => (
+            <div
+              key={t.value}
+              className="flex items-center justify-between gap-1 rounded-lg border border-zinc-200 px-2 py-1.5"
+            >
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.color }} />
+                {t.label}
+              </span>
+              <span className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => adjustEnergy(t.value, -1)}
+                  className="rounded-full p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  aria-label={`Remove ${t.label} Energy`}
+                >
+                  <Minus size={12} />
+                </button>
+                <span className="w-4 text-center text-xs font-bold text-zinc-800">
+                  {energyLoadout[t.value] || 0}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => adjustEnergy(t.value, 1)}
+                  className="rounded-full p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  aria-label={`Add ${t.label} Energy`}
+                >
+                  <Plus size={12} />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+        {totalEnergy === 0 && (
+          <p className="mt-2 text-center text-[11px] text-amber-600">
+            You haven't picked any Energy — you won't be able to power most attacks.
+          </p>
+        )}
+      </div>
+
       <div className="mt-4 flex items-center justify-between text-xs font-semibold text-zinc-500">
-        <span>Bench: {benchCardIds.length}/5</span>
+        <span>Bench: {benchCardIds.length}/5 &middot; Energy: {totalEnergy}</span>
         <button
           type="button"
           disabled={!activeCardId}

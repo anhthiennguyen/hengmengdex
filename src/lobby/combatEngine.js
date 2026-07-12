@@ -62,12 +62,12 @@ export function resolveKnockOut(battle, koPeerId, koCard, attackerPeerId) {
     if (prizeCard) {
       battle.hands[attackerPeerId].push(prizeCard);
       logs.push(`${battle.names[attackerPeerId]} took a Prize card!`);
-    }
-    if (battle.prizePiles[attackerPeerId].length === 0) {
-      battle.phase = 'finished';
-      battle.winner = attackerPeerId;
-      logs.push(`${battle.names[attackerPeerId]} took their last Prize card and wins!`);
-      return { logs, gameEnded: true, pendingChoice: null };
+      if (battle.prizePiles[attackerPeerId].length === 0) {
+        battle.phase = 'finished';
+        battle.winner = attackerPeerId;
+        logs.push(`${battle.names[attackerPeerId]} took their last Prize card and wins!`);
+        return { logs, gameEnded: true, pendingChoice: null };
+      }
     }
   }
 

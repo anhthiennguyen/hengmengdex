@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Trophy, Flag, Layers, Zap, ArrowLeftRight, Sparkles as SparklesIcon } from 'lucide-react';
+import { getEnergyTypeInfo } from '../lib/pokemonTypes';
 import MengCardTile from './MengCardTile';
 import ActivePokemonPanel from './ActivePokemonPanel';
 import SetupPhase from './SetupPhase';
@@ -14,20 +15,20 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
   const opponentName = battle.names[opponentId];
 
   const [mode, setMode] = useState(null); // null | 'bench' | 'attach' | 'retreat' | 'evolve'
-  const [attachEnergyId, setAttachEnergyId] = useState(null);
+  const [attachEnergyType, setAttachEnergyType] = useState(null);
   const [retreatBenchId, setRetreatBenchId] = useState(null);
   const [retreatEnergyIds, setRetreatEnergyIds] = useState([]);
 
   function changeMode(next) {
     setMode((current) => (current === next ? null : next));
-    setAttachEnergyId(null);
+    setAttachEnergyType(null);
     setRetreatBenchId(null);
     setRetreatEnergyIds([]);
   }
 
   useEffect(() => {
     setMode(null);
-    setAttachEnergyId(null);
+    setAttachEnergyType(null);
     setRetreatBenchId(null);
     setRetreatEnergyIds([]);
   }, [battle.turn, battle.phase]);
@@ -88,7 +89,8 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
     }
 
     const myBasics = myHand.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
-    const myEnergy = myHand.filter((c) => c.cardType === 'energy');
+    const myEnergyPool = battle.energyPools?.[myPeerId] || {};
+    const myEnergyTypes = Object.entries(myEnergyPool).filter(([, count]) => count > 0);
     const myItems = myHand.filter((c) => c.cardType === 'trainer' && c.trainerType === 'item');
     const mySupporters = myHand.filter((c) => c.cardType === 'trainer' && c.trainerType === 'supporter');
     const myEvolutions = myHand.filter((c) => c.cardType === 'meng' && c.stage !== 'basic');
@@ -110,8 +112,8 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
     const canPlaySupporter = !supporterUsed && battle.turnNumber !== 1;
 
     function attachTarget(target) {
-      if (!attachEnergyId) return;
-      engine.attachEnergy(battle.battleId, attachEnergyId, target.id);
+      if (!attachEnergyType) return;
+      engine.attachEnergy(battle.battleId, attachEnergyType, target.id);
       changeMode(null);
     }
 
@@ -141,7 +143,8 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             {zoneCount(battle.decks[opponentId])} · Hand {zoneCount(battle.hands[opponentId])}
           </span>
           <span>
-            {myName}: Prizes {zoneCount(battle.prizePiles[myPeerId])} · Deck {zoneCount(battle.decks[myPeerId])}
+            {myName}: Prizes {zoneCount(battle.prizePiles[myPeerId])} · Deck {zoneCount(battle.decks[myPeerId])} ·
+            Energy {myEnergyTypes.reduce((sum, [, n]) => sum + n, 0)}
           </span>
         </div>
 
@@ -161,7 +164,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             <BenchRow cards={oppBench} />
             <BenchRow
               cards={myBench}
-              onSelect={mode === 'attach' && attachEnergyId ? attachTarget : undefined}
+              onSelect={mode === 'attach' && attachEnergyType ? attachTarget : undefined}
               highlightId={retreatBenchId}
               onSelectRetreat={mode === 'retreat' && !retreatBenchId ? selectRetreatTarget : undefined}
             />
@@ -188,7 +191,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
                 icon={<Zap size={14} />}
                 label="Attach Energy"
                 active={mode === 'attach'}
-                disabled={myEnergy.length === 0 || energyAttached}
+                disabled={myEnergyTypes.length === 0 || energyAttached}
                 onClick={() => changeMode('attach')}
               />
               <ActionButton
@@ -219,12 +222,27 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
               </SubPanel>
             )}
 
-            {mode === 'attach' && !attachEnergyId && (
-              <SubPanel title="Choose an Energy card">
-                <TileGrid cards={myEnergy} onSelect={(card) => setAttachEnergyId(card.id)} />
+            {mode === 'attach' && !attachEnergyType && (
+              <SubPanel title="Choose an Energy type">
+                <div className="flex flex-wrap gap-1.5">
+                  {myEnergyTypes.map(([type, count]) => {
+                    const info = getEnergyTypeInfo(type);
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setAttachEnergyType(type)}
+                        className="flex items-center gap-1.5 rounded-full border border-zinc-300 py-1 pl-2 pr-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50"
+                      >
+                        <Zap size={12} style={{ color: info.color, fill: info.color }} />
+                        {info.label} &times;{count}
+                      </button>
+                    );
+                  })}
+                </div>
               </SubPanel>
             )}
-            {mode === 'attach' && attachEnergyId && (
+            {mode === 'attach' && attachEnergyType && (
               <SubPanel title="Choose a Pokemon to attach it to">
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {[myActive, ...myBench].filter(Boolean).map((card) => (

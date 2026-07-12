@@ -1,9 +1,9 @@
-// Fully-automatic deck construction: pool legality check, Energy
-// synthesis, dealing, prizes/hands, and the mulligan loop. Runs once when a
-// battle is accepted — there is no manual deck-building UI (see the plan's
-// "Deck model" decision).
-
-import { getEnergyTypeInfo } from '../lib/pokemonTypes';
+// Fully-automatic deck construction: pool legality check, dealing,
+// prizes/hands, and the mulligan loop. Runs once when a battle is accepted
+// — there is no manual deck-building UI for Pokemon/Trainer cards (see the
+// plan's "Deck model" decision). Energy is handled separately: each player
+// picks their own Energy loadout during Setup (see SetupPhase.jsx /
+// lobbyEngine.js's submit_setup), not dealt from the Dex pool at all.
 
 // Absolute floor: below this, even graceful scaling can't produce a
 // non-degenerate game (each player needs a few Basics — for a Bench, not
@@ -55,84 +55,23 @@ export function checkPoolLegality(pool) {
   return { legal: cards.length >= MIN_POOL_SIZE && basics.length >= MIN_BASICS, cards };
 }
 
-// Distributes `energyCount` Energy cards across the elemental types present
-// among `mengCards`, proportional to how often each type appears, via the
-// largest-remainder rounding method. Guarantees every represented type gets
-// at least 1 Energy (stealing from the currently-largest type) so a deck's
-// only Fire attacker is never left with zero Fire Energy to draw into.
-function synthesizeEnergy(mengCards, energyCount) {
-  if (energyCount <= 0 || mengCards.length === 0) return [];
-
-  const tally = {};
-  for (const card of mengCards) {
-    tally[card.type] = (tally[card.type] || 0) + 1;
-  }
-  const types = Object.keys(tally);
-  const total = mengCards.length;
-
-  const raw = types.map((t) => (energyCount * tally[t]) / total);
-  const counts = raw.map(Math.floor);
-  let leftover = energyCount - counts.reduce((a, b) => a + b, 0);
-
-  const byRemainder = types
-    .map((t, i) => ({ i, remainder: raw[i] - counts[i] }))
-    .sort((a, b) => b.remainder - a.remainder);
-  for (let k = 0; k < leftover; k++) {
-    counts[byRemainder[k % types.length].i] += 1;
-  }
-  leftover = 0;
-
-  for (let i = 0; i < types.length; i++) {
-    if (counts[i] > 0) continue;
-    if (energyCount < types.length) break; // not enough Energy to cover every type at all
-    let maxIdx = 0;
-    for (let j = 1; j < types.length; j++) if (counts[j] > counts[maxIdx]) maxIdx = j;
-    if (counts[maxIdx] > 1) {
-      counts[maxIdx] -= 1;
-      counts[i] += 1;
-    }
-  }
-
-  const energyCards = [];
-  types.forEach((type, i) => {
-    const info = getEnergyTypeInfo(type);
-    for (let n = 0; n < counts[i]; n++) {
-      energyCards.push({
-        id: `energy-${type}-${energyCards.length}-${Date.now()}`,
-        cardType: 'energy',
-        energyType: type,
-        name: `${info.label} Energy`,
-        synthetic: true,
-      });
-    }
-  });
-  return energyCards;
-}
-
-// Scales Prize/hand sizes down for small decks instead of always using the
-// real game's fixed 6/7, while reserving up to 2 cards in the deck itself
-// so the mandatory turn-1 draw doesn't instantly deck the player out.
-// Reaches the real 6 Prizes once a deck is big enough to support it. Uses
-// a /2 divisor (not /3) so a modest 12-14 card deck already reaches the
-// full 6 Prizes — a smaller divisor made even a 9-card deck collapse to
-// 1-2 Prizes, ending games after a single Knock Out. The reserve is 2
-// (not 1) because a player whose opponent mulligans gets a bonus draw
-// from their OWN deck as compensation — a 1-card reserve could still hit
-// 0 from a single opponent mulligan, decking a player out before they'd
-// taken a single action.
+// Scales hand/Prize sizes down for small decks instead of always using the
+// real game's fixed 7/6. Hand size is prioritized FIRST (up to the real 7),
+// since a thin hand makes Setup barely playable — deck size no longer
+// includes ~40% Energy padding (Energy moved to a separate Setup-time
+// player choice, see energyLoadout.js), so decks are meaningfully smaller
+// now than when this was tuned around Prizes-first. Deck-out is no longer
+// a loss condition, so there's no need to defensively reserve cards against
+// it — an empty deck just means no more draws, not a loss.
 function scaledZones(totalCards) {
-  const prizeCount = Math.min(PRIZE_COUNT, Math.max(1, Math.floor(totalCards / 2)));
-  const afterPrizes = totalCards - prizeCount;
-  const reserveForDraw = Math.max(0, Math.min(2, afterPrizes - 1));
-  const handSize = Math.max(1, Math.min(STARTING_HAND_SIZE, afterPrizes - reserveForDraw));
+  const handSize = Math.max(1, Math.min(STARTING_HAND_SIZE, totalCards - 2));
+  const afterHand = totalCards - handSize;
+  const prizeCount = Math.max(0, Math.min(PRIZE_COUNT, afterHand - 1));
   return { prizeCount, handSize };
 }
 
 function buildDeckForPlayer(cards) {
-  const mengCards = cards.filter((c) => c.cardType === 'meng');
-  const energyCount = Math.ceil((cards.length * 2) / 3);
-  const energy = synthesizeEnergy(mengCards, energyCount);
-  let deck = shuffle([...cards, ...energy]);
+  let deck = shuffle(cards);
   if (deck.length > MAX_DECK_SIZE) deck = deck.slice(0, MAX_DECK_SIZE);
   return deck;
 }
@@ -184,8 +123,8 @@ function toInPlayInstance(card) {
   return { ...card, played: false };
 }
 
-// Runs the whole automatic deal: legality gate, dealing, Energy synthesis,
-// prizes/hands, and mulligans. Returns { legal: false } on a bad pool, or
+// Runs the whole automatic deal: legality gate, dealing, prizes/hands, and
+// mulligans. Returns { legal: false } on a bad pool, or
 // the full initial per-player state pieces on success.
 export function buildMatch(pool, players) {
   const { legal, cards } = checkPoolLegality(pool);

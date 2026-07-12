@@ -5,6 +5,7 @@ import { resolveRules, startTurn } from './effectEngine';
 import { resolveKnockOut, resolveAttack } from './combatEngine';
 import { runCheckup } from './pokemonCheckup';
 import { buildMatch, MIN_POOL_SIZE, MIN_BASICS } from './deckBuilder';
+import { validateEnergyLoadout } from './energyLoadout';
 import { redactStateFor } from './battleRedaction';
 
 // PeerJS's default cloud broker (0.peerjs.com) is shared across every app
@@ -193,16 +194,16 @@ class LobbyEngine {
     this.send({ type: 'battle_response', battleId, accept });
   }
 
-  submitSetup(battleId, activeCardId, benchCardIds) {
-    this.send({ type: 'submit_setup', battleId, activeCardId, benchCardIds });
+  submitSetup(battleId, activeCardId, benchCardIds, energyLoadout) {
+    this.send({ type: 'submit_setup', battleId, activeCardId, benchCardIds, energyLoadout });
   }
 
   benchBasic(battleId, cardId) {
     this.send({ type: 'bench_basic', battleId, cardId });
   }
 
-  attachEnergy(battleId, energyCardId, targetInPlayCardId) {
-    this.send({ type: 'attach_energy', battleId, energyCardId, targetInPlayCardId });
+  attachEnergy(battleId, energyType, targetInPlayCardId) {
+    this.send({ type: 'attach_energy', battleId, energyType, targetInPlayCardId });
   }
 
   retreat(battleId, benchCardId, energyIdsToDiscard) {
@@ -324,6 +325,7 @@ class LobbyEngine {
             mulliganCounts: match.mulliganCounts,
             active: { [pA]: null, [pB]: null },
             bench: { [pA]: [], [pB]: [] },
+            energyPools: { [pA]: null, [pB]: null },
             setupChoices: { [pA]: null, [pB]: null },
             setupReady: { [pA]: false, [pB]: false },
             pendingChoice: [],
@@ -365,9 +367,13 @@ class LobbyEngine {
           .filter(Boolean);
         if (benchCards.length !== uniqueBenchIds.length) return;
 
+        const energyLoadout = validateEnergyLoadout(intent.energyLoadout);
+        if (!energyLoadout) return;
+
         battle.setupChoices[fromPeerId] = {
           activeCardId: activeCard.id,
           benchCardIds: benchCards.map((c) => c.id),
+          energyLoadout,
         };
         battle.setupReady[fromPeerId] = true;
         battle.log.push(`${battle.names[fromPeerId]} is ready.`);
@@ -390,6 +396,7 @@ class LobbyEngine {
             });
             battle.active[peerId] = chosenActive;
             battle.bench[peerId] = chosenBench;
+            battle.energyPools[peerId] = choice.energyLoadout;
           }
 
           battle.log.push('Both players are ready! Pokemon are revealed!');
@@ -436,9 +443,9 @@ class LobbyEngine {
         if (!battle || battle.phase !== 'battle' || battle.turn !== fromPeerId || battle.pendingChoice.length) return;
         if (battle.energyAttachedThisTurn[fromPeerId]) return;
 
-        const hand = battle.hands[fromPeerId];
-        const idx = hand.findIndex((c) => c.id === intent.energyCardId && c.cardType === 'energy');
-        if (idx === -1) return;
+        const pool = battle.energyPools[fromPeerId];
+        const energyType = intent.energyType;
+        if (!pool || !(pool[energyType] > 0)) return;
 
         const target =
           battle.active[fromPeerId]?.id === intent.targetInPlayCardId
@@ -446,10 +453,11 @@ class LobbyEngine {
             : battle.bench[fromPeerId].find((c) => c.id === intent.targetInPlayCardId);
         if (!target) return;
 
-        const [energyCard] = hand.splice(idx, 1);
-        target.attachedEnergy.push({ id: energyCard.id, energyType: energyCard.energyType });
+        pool[energyType] -= 1;
+        const energyId = `energy-${energyType}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        target.attachedEnergy.push({ id: energyId, energyType });
         battle.energyAttachedThisTurn[fromPeerId] = true;
-        battle.log.push(`${battle.names[fromPeerId]} attached ${energyCard.name} to ${target.name}.`);
+        battle.log.push(`${battle.names[fromPeerId]} attached ${energyType} Energy to ${target.name}.`);
         this._broadcast();
         break;
       }

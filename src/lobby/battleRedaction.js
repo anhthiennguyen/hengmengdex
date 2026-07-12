@@ -1,9 +1,9 @@
-// Hides hidden-information zones (deck, hand, prizes, and — while Setup is
-// still in progress — the not-yet-submitted Active/Bench choice) from
-// everyone except the player who owns them. lobbyEngine.js's _broadcast()
-// calls this once per connection, so each peer gets a state snapshot
-// redacted from their own point of view; the host must read its own local
-// UI through this too, never raw `this.state`.
+// Hides hidden-information zones (deck, hand, prizes, Energy pool, and —
+// while Setup is still in progress — the not-yet-submitted Active/Bench
+// choice) from everyone except the player who owns them. lobbyEngine.js's
+// _broadcast() calls this once per connection, so each peer gets a state
+// snapshot redacted from their own point of view; the host must read its
+// own local UI through this too, never raw `this.state`.
 
 function redactBattle(battle, viewerPeerId) {
   // Battles before the deal (still 'pending') or already 'finished' with
@@ -18,6 +18,16 @@ function redactBattle(battle, viewerPeerId) {
     next.prizePiles[peerId] = isViewer
       ? battle.prizePiles[peerId]
       : { count: battle.prizePiles[peerId].length };
+  }
+
+  if (battle.energyPools) {
+    next.energyPools = {};
+    for (const peerId of battle.players) {
+      const isViewer = peerId === viewerPeerId;
+      const pool = battle.energyPools[peerId];
+      const total = Object.values(pool || {}).reduce((sum, n) => sum + n, 0);
+      next.energyPools[peerId] = isViewer ? pool : { count: total };
+    }
   }
 
   // During Setup, a player's chosen Active/Bench cards stay in

@@ -43,21 +43,6 @@ export default function MengCardTile({ card, onClick, disabled, selected, showHp
       : 'border-zinc-200 bg-white hover:border-[var(--dex-accent-300)] hover:shadow-sm'
   } ${onClick && !disabled ? 'cursor-pointer' : 'cursor-default'} ${disabled ? 'opacity-50' : ''}`;
 
-  if (cardType === 'energy') {
-    const info = getEnergyTypeInfo(card.energyType);
-    return (
-      <button type="button" onClick={onClick} disabled={disabled || !onClick} className={baseClasses}>
-        <span
-          className="flex h-14 w-14 items-center justify-center rounded-lg"
-          style={{ backgroundColor: info.color }}
-        >
-          <Zap size={22} className="text-white" fill="white" />
-        </span>
-        <span className="text-xs font-bold text-zinc-800">{card.name}</span>
-      </button>
-    );
-  }
-
   if (cardType === 'trainer') {
     return (
       <button
