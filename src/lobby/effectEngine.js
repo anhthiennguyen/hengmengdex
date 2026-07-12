@@ -168,6 +168,19 @@ export function startTurn(battle, peerId) {
     logs.push(`${battle.names[peerId]}'s deck is empty — no card to draw this turn.`);
   }
 
+  // On top of the normal draw: Energy is a finite resource synthesized
+  // once at deck-build time, not something that comes back on its own —
+  // without a guaranteed trickle a player can end up with dead Pokemon
+  // they can never power once their dedicated Energy is gone. So every
+  // turn, pull one more Energy card straight from the deck (skipping the
+  // draw pile's randomness just for this), while any remain.
+  const energyIdx = battle.decks[peerId].findIndex((c) => c.cardType === 'energy');
+  if (energyIdx !== -1) {
+    const [energyCard] = battle.decks[peerId].splice(energyIdx, 1);
+    battle.hands[peerId].push(energyCard);
+    logs.push({ type: 'bonus_energy', peerId, playerName: battle.names[peerId], cardName: energyCard.name });
+  }
+
   const opponentId = battle.players.find((p) => p !== peerId);
   const opponentActive = battle.active[opponentId] || null;
   const team = [battle.active[peerId], ...battle.bench[peerId]].filter(Boolean);

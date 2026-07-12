@@ -19,6 +19,11 @@ function renderLogEntry(entry, viewerPeerId) {
       ? `${entry.playerName} drew ${entry.cardName} from the deck.`
       : `${entry.playerName} drew a card from the deck.`;
   }
+  if (entry.type === 'bonus_energy') {
+    return entry.peerId === viewerPeerId
+      ? `${entry.playerName} also got ${entry.cardName} from the deck.`
+      : `${entry.playerName} also got an Energy card from the deck.`;
+  }
   return '';
 }
 
