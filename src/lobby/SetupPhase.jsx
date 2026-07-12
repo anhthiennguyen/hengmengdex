@@ -33,6 +33,16 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
   const allCards = [...(battle.hands?.[myPeerId] ?? []), ...(battle.decks?.[myPeerId] ?? [])];
   const basics = allCards.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
 
+  // Types across the player's WHOLE deck (including their own Prize pile —
+  // that's fine to read for this purpose since it's their own already-picked
+  // cards, not new information; the Prize cards themselves just stay
+  // visually hidden), so the Energy picker can remind them what they'll
+  // actually need, not just what happens to be visible right now.
+  const myWholeDeck = [...allCards, ...(battle.prizePiles?.[myPeerId] ?? [])];
+  const neededTypes = new Set(
+    myWholeDeck.filter((c) => c.cardType === 'meng').map((c) => c.type)
+  );
+
   function isPlaceable(card) {
     return card.cardType === 'meng' && card.stage === 'basic';
   }
@@ -120,14 +130,25 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
           Choose your Energy — pick as much of each type as you want, for the whole game.
         </p>
         <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-          {POKEMON_TYPES.map((t) => (
+          {POKEMON_TYPES.map((t) => {
+            const needed = neededTypes.has(t.value);
+            return (
             <div
               key={t.value}
-              className="flex items-center justify-between gap-1 rounded-lg border border-zinc-200 px-2 py-1.5"
+              className={`flex items-center justify-between gap-1 rounded-lg border px-2 py-1.5 ${
+                needed
+                  ? 'border-[var(--dex-accent-400)] bg-[var(--dex-accent-50)]'
+                  : 'border-zinc-200'
+              }`}
             >
               <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.color }} />
                 {t.label}
+                {needed && (
+                  <span className="rounded-full bg-[var(--dex-accent-600)] px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">
+                    Needed
+                  </span>
+                )}
               </span>
               <span className="flex items-center gap-1">
                 <button
@@ -151,7 +172,8 @@ export default function SetupPhase({ battle, myPeerId, opponentName, engine }) {
                 </button>
               </span>
             </div>
-          ))}
+            );
+          })}
         </div>
         {totalEnergy === 0 && (
           <p className="mt-2 text-center text-[11px] text-amber-600">
