@@ -143,18 +143,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
 
     return (
       <PhaseCard>
-        <div className="flex items-center justify-between">
-          <div className="w-16" />
-          <h2 className="text-center text-lg font-bold text-zinc-900">Battle!</h2>
-          <button
-            type="button"
-            onClick={() => setShowHand(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-2.5 py-1.5 text-xs font-bold text-zinc-600 hover:bg-zinc-50"
-          >
-            <Hand size={14} />
-            View Hand
-          </button>
-        </div>
+        <h2 className="text-center text-lg font-bold text-zinc-900">Battle!</h2>
 
         <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-zinc-500">
           <span>
@@ -170,6 +159,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
         {showHand && (
           <HandViewer
             hand={myHand}
+            bench={myBench}
             onClose={() => setShowHand(false)}
             onSelectCard={(card) => setViewingHandCard(card)}
           />
@@ -179,24 +169,31 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
         )}
 
         <div className="mt-3 grid grid-cols-2 gap-4">
-          <ActivePokemonPanel card={oppActive} label={opponentName} canAttack={false} />
+          <ActivePokemonPanel
+            card={oppActive}
+            label={opponentName}
+            canAttack={false}
+            onViewDetails={setViewingHandCard}
+          />
           <ActivePokemonPanel
             card={myActive}
             label={`${myName} (you)`}
             canAttack={myTurn}
             isFirstTurn={battle.turnNumber === 1}
             onAttack={(attackId) => engine.attack(battle.battleId, attackId)}
+            onViewDetails={setViewingHandCard}
           />
         </div>
 
         {(oppBench.length > 0 || myBench.length > 0) && (
           <div className="mt-3 grid grid-cols-2 gap-4">
-            <BenchRow cards={oppBench} />
+            <BenchRow cards={oppBench} onView={setViewingHandCard} />
             <BenchRow
               cards={myBench}
               onSelect={mode === 'attach' && attachEnergyCardId ? attachTarget : undefined}
               highlightId={retreatBenchId}
               onSelectRetreat={mode === 'retreat' && !retreatBenchId ? selectRetreatTarget : undefined}
+              onView={setViewingHandCard}
             />
           </div>
         )}
@@ -210,6 +207,12 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
         {myTurn && (
           <div className="mt-4">
             <div className="flex flex-wrap justify-center gap-2">
+              <ActionButton
+                icon={<Hand size={14} />}
+                label="View Hand"
+                active={showHand}
+                onClick={() => setShowHand(true)}
+              />
               <ActionButton
                 icon={<Layers size={14} />}
                 label="Bench a Basic"
@@ -438,10 +441,11 @@ function LogPanel({ log }) {
   );
 }
 
-function HandViewer({ hand, onClose, onSelectCard }) {
+function HandViewer({ hand, bench, onClose, onSelectCard }) {
   const energyCards = hand.filter((c) => c.cardType === 'energy');
   const pokemonCards = hand.filter((c) => c.cardType === 'meng');
   const trainerCards = hand.filter((c) => c.cardType === 'trainer');
+  const benchCards = bench || [];
 
   return (
     <div
@@ -483,6 +487,17 @@ function HandViewer({ hand, onClose, onSelectCard }) {
           <p className="mb-4 text-xs text-zinc-400">No Pokemon cards in hand right now.</p>
         )}
 
+        <p className="mb-1.5 text-xs font-bold text-zinc-500">Benched ({benchCards.length})</p>
+        {benchCards.length > 0 ? (
+          <div className="mb-4 grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+            {benchCards.map((card) => (
+              <MengCardTile key={card.id} card={card} showHp onClick={() => onSelectCard(card)} />
+            ))}
+          </div>
+        ) : (
+          <p className="mb-4 text-xs text-zinc-400">No Pokemon on your Bench right now.</p>
+        )}
+
         <p className="mb-1.5 text-xs font-bold text-zinc-500">Trainer ({trainerCards.length})</p>
         {trainerCards.length > 0 ? (
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
@@ -498,20 +513,27 @@ function HandViewer({ hand, onClose, onSelectCard }) {
   );
 }
 
-function BenchRow({ cards, onSelect, onSelectRetreat, highlightId }) {
+function BenchRow({ cards, onSelect, onSelectRetreat, highlightId, onView }) {
   if (cards.length === 0) return <div />;
   return (
     <div className="flex flex-wrap gap-1.5">
-      {cards.map((card) => (
-        <div key={card.id} className="w-16">
-          <MengCardTile
-            card={card}
-            showHp
-            selected={card.id === highlightId}
-            onClick={onSelectRetreat ? () => onSelectRetreat(card) : onSelect ? () => onSelect(card) : undefined}
-          />
-        </div>
-      ))}
+      {cards.map((card) => {
+        // While a selection mode is active (attaching/retreating), clicking
+        // picks the target. Otherwise it just opens the read-only detail
+        // popup, same as everywhere else in the battle view.
+        const onClick = onSelectRetreat
+          ? () => onSelectRetreat(card)
+          : onSelect
+          ? () => onSelect(card)
+          : onView
+          ? () => onView(card)
+          : undefined;
+        return (
+          <div key={card.id} className="w-16">
+            <MengCardTile card={card} showHp selected={card.id === highlightId} onClick={onClick} />
+          </div>
+        );
+      })}
     </div>
   );
 }

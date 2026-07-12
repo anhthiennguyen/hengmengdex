@@ -3,7 +3,7 @@ import { canAffordAttack } from './combatEngine';
 import { getEnergyTypeInfo } from '../lib/pokemonTypes';
 import MengCardTile from './MengCardTile';
 
-export default function ActivePokemonPanel({ card, label, canAttack, isFirstTurn, onAttack }) {
+export default function ActivePokemonPanel({ card, label, canAttack, isFirstTurn, onAttack, onViewDetails }) {
   if (!card) {
     return (
       <div>
@@ -25,7 +25,7 @@ export default function ActivePokemonPanel({ card, label, canAttack, isFirstTurn
   return (
     <div>
       <p className="mb-1 text-center text-xs font-bold text-zinc-500">{label}</p>
-      <MengCardTile card={card} showHp />
+      <MengCardTile card={card} showHp onClick={onViewDetails ? () => onViewDetails(card) : undefined} />
 
       {canAttack && (
         <div className="mt-2 grid gap-1.5">
