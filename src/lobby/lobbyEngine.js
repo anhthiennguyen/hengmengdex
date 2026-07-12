@@ -238,6 +238,17 @@ class LobbyEngine {
   async _applyIntent(fromPeerId, intent) {
     if (this.role !== 'host') return;
 
+    try {
+      await this._applyIntentInner(fromPeerId, intent);
+    } catch (err) {
+      // A thrown exception here would otherwise vanish silently (no
+      // broadcast, no log) — the intent would just look like it did
+      // nothing. Surface it to the console so it's diagnosable.
+      console.error(`Error applying intent "${intent.type}":`, err);
+    }
+  }
+
+  async _applyIntentInner(fromPeerId, intent) {
     switch (intent.type) {
       case 'join': {
         const name = String(intent.name || '').trim().slice(0, 24) || 'Trainer';

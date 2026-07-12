@@ -151,6 +151,7 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
             card={myActive}
             label={`${myName} (you)`}
             canAttack={myTurn}
+            isFirstTurn={battle.turnNumber === 1}
             onAttack={(attackId) => engine.attack(battle.battleId, attackId)}
           />
         </div>

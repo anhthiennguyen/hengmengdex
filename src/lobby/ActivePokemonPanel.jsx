@@ -3,7 +3,7 @@ import { canAffordAttack } from './combatEngine';
 import { getEnergyTypeInfo } from '../lib/pokemonTypes';
 import MengCardTile from './MengCardTile';
 
-export default function ActivePokemonPanel({ card, label, canAttack, onAttack }) {
+export default function ActivePokemonPanel({ card, label, canAttack, isFirstTurn, onAttack }) {
   if (!card) {
     return (
       <div>
@@ -16,6 +16,11 @@ export default function ActivePokemonPanel({ card, label, canAttack, onAttack })
   }
 
   const conditionBlocksAttack = ['asleep', 'paralyzed'].includes(card.conditions?.primary?.type);
+  const blockedReason = isFirstTurn
+    ? "You can't attack on the very first turn of the game."
+    : conditionBlocksAttack
+    ? `${card.name} can't attack right now (${card.conditions.primary.type}).`
+    : null;
 
   return (
     <div>
@@ -26,7 +31,7 @@ export default function ActivePokemonPanel({ card, label, canAttack, onAttack })
         <div className="mt-2 grid gap-1.5">
           {(card.attacks || []).map((attack) => {
             const affordable = canAffordAttack(attack, card.attachedEnergy || []);
-            const disabled = !affordable || conditionBlocksAttack;
+            const disabled = !affordable || !!blockedReason;
             return (
               <button
                 key={attack.id}
@@ -46,11 +51,7 @@ export default function ActivePokemonPanel({ card, label, canAttack, onAttack })
               </button>
             );
           })}
-          {conditionBlocksAttack && (
-            <p className="text-center text-[11px] text-amber-600">
-              {card.name} can't attack right now ({card.conditions.primary.type}).
-            </p>
-          )}
+          {blockedReason && <p className="text-center text-[11px] text-amber-600">{blockedReason}</p>}
         </div>
       )}
     </div>

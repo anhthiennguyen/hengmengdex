@@ -6,13 +6,17 @@
 import { getEnergyTypeInfo } from '../lib/pokemonTypes';
 
 // Absolute floor: below this, even graceful scaling can't produce a
-// non-degenerate game (each player needs at least 1 Basic and a couple of
-// cards to draw). Above the floor, deck/hand/Prize sizes scale down
-// smoothly toward the real 6-Prize/7-card targets rather than hard-gating
-// at the real game's scale, since a personal/casual Dex may only have a
-// handful of cards.
+// non-degenerate game (each player needs a few Basics — for a Bench, not
+// just a lone Active — and a couple of cards to draw). Above the floor,
+// deck/hand/Prize sizes scale down smoothly toward the real 6-Prize/
+// 7-card targets rather than hard-gating at the real game's scale, since a
+// personal/casual Dex may only have a handful of cards. MIN_BASICS is 4
+// (not 2) so that, split evenly, each player ends up with 2+ Basics
+// instead of exactly 1 — a player with only 1 Basic in their whole deck
+// has zero possible Bench, so their very first Knock Out ends the game
+// instantly, which reads as a "random" early win/loss.
 export const MIN_POOL_SIZE = 6;
-export const MIN_BASICS = 2;
+export const MIN_BASICS = 4;
 export const STARTING_HAND_SIZE = 7;
 export const PRIZE_COUNT = 6;
 export const MAX_DECK_SIZE = 60;
@@ -106,13 +110,21 @@ function synthesizeEnergy(mengCards, energyCount) {
 }
 
 // Scales Prize/hand sizes down for small decks instead of always using the
-// real game's fixed 6/7, while always reserving at least 1 card in the
-// deck itself so turn 1's mandatory draw doesn't instantly deck the player
-// out. Reaches the real 6 Prizes once a deck is big enough to support it.
+// real game's fixed 6/7, while reserving up to 2 cards in the deck itself
+// so the mandatory turn-1 draw doesn't instantly deck the player out.
+// Reaches the real 6 Prizes once a deck is big enough to support it. Uses
+// a /2 divisor (not /3) so a modest 12-14 card deck already reaches the
+// full 6 Prizes — a smaller divisor made even a 9-card deck collapse to
+// 1-2 Prizes, ending games after a single Knock Out. The reserve is 2
+// (not 1) because a player whose opponent mulligans gets a bonus draw
+// from their OWN deck as compensation — a 1-card reserve could still hit
+// 0 from a single opponent mulligan, decking a player out before they'd
+// taken a single action.
 function scaledZones(totalCards) {
-  const prizeCount = Math.min(PRIZE_COUNT, Math.max(1, Math.floor(totalCards / 3)));
-  const reserveForDraw = totalCards > prizeCount ? 1 : 0;
-  const handSize = Math.max(1, Math.min(STARTING_HAND_SIZE, totalCards - prizeCount - reserveForDraw));
+  const prizeCount = Math.min(PRIZE_COUNT, Math.max(1, Math.floor(totalCards / 2)));
+  const afterPrizes = totalCards - prizeCount;
+  const reserveForDraw = Math.max(0, Math.min(2, afterPrizes - 1));
+  const handSize = Math.max(1, Math.min(STARTING_HAND_SIZE, afterPrizes - reserveForDraw));
   return { prizeCount, handSize };
 }
 
@@ -123,6 +135,35 @@ function buildDeckForPlayer(cards) {
   let deck = shuffle([...cards, ...energy]);
   if (deck.length > MAX_DECK_SIZE) deck = deck.slice(0, MAX_DECK_SIZE);
   return deck;
+}
+
+function isBasic(card) {
+  return card.cardType === 'meng' && card.stage === 'basic';
+}
+
+// Prize cards are just the top N of a shuffled deck, so on a small deck
+// with few Basics it's entirely possible for EVERY Basic to land in the
+// Prize pile by chance — leaving zero Basics anywhere in the drawable
+// deck/hand. The mulligan loop then can never succeed (there's nothing
+// left to draw into), so it spins until MAX_MULLIGAN_ATTEMPTS and gives
+// up with a Basic-less hand — an un-playable Setup. Guarantee at least 1
+// Basic stays outside the Prize slice by swapping it with a non-Basic
+// from the drawable portion, if needed.
+function keepOneBasicOutOfPrizes(deck, prizeCount) {
+  const prizeSlice = deck.slice(0, prizeCount);
+  const restSlice = deck.slice(prizeCount);
+  if (restSlice.some(isBasic)) return deck; // already fine
+
+  const basicIdx = prizeSlice.findIndex(isBasic);
+  if (basicIdx === -1) return deck; // no Basics in the deck at all (shouldn't happen post-legality-gate)
+
+  const nonBasicIdx = restSlice.findIndex((c) => !isBasic(c));
+  if (nonBasicIdx === -1) return deck; // rest is somehow all Basics already — nothing to swap
+
+  const swapped = [...deck];
+  const restPos = prizeCount + nonBasicIdx;
+  [swapped[basicIdx], swapped[restPos]] = [swapped[restPos], swapped[basicIdx]];
+  return swapped;
 }
 
 function toInPlayInstance(card) {
@@ -157,16 +198,24 @@ export function buildMatch(pool, players) {
 
   const allocations = { [playerA]: [], [playerB]: [] };
 
-  // Guaranteed-basic seeding: every deck gets >=1 Basic before the rest is
-  // dealt out — mulligans still handle "not necessarily in the opening hand."
-  for (const peerId of [dealtFirst, dealtSecond]) {
-    const idx = remaining.findIndex((c) => c.cardType === 'meng' && c.stage === 'basic');
-    if (idx !== -1) allocations[peerId].push(remaining.splice(idx, 1)[0]);
-  }
+  // Deal every Basic round-robin FIRST, before anything else, so Basics
+  // split as evenly as possible between the two players (as opposed to
+  // being scattered randomly among a big alternating deal, where one
+  // player could easily end up with just a single Basic — and since only
+  // Basics can ever be placed into the Active Spot or Bench, a deck with
+  // only 1 Basic has zero possible Bench and loses the instant that one
+  // Pokemon is Knocked Out). Every remaining (non-Basic) card is then
+  // dealt alternately as before.
+  const basics = remaining.filter((c) => c.cardType === 'meng' && c.stage === 'basic');
+  const nonBasics = remaining.filter((c) => !(c.cardType === 'meng' && c.stage === 'basic'));
 
   let turn = dealtFirst;
-  while (remaining.length > 0) {
-    allocations[turn].push(remaining.shift());
+  for (const basic of basics) {
+    allocations[turn].push(basic);
+    turn = turn === dealtFirst ? dealtSecond : dealtFirst;
+  }
+  for (const card of nonBasics) {
+    allocations[turn].push(card);
     turn = turn === dealtFirst ? dealtSecond : dealtFirst;
   }
 
@@ -185,6 +234,7 @@ export function buildMatch(pool, players) {
   for (const peerId of players) {
     const { prizeCount, handSize } = scaledZones(decks[peerId].length);
     handSizes[peerId] = handSize;
+    decks[peerId] = keepOneBasicOutOfPrizes(decks[peerId], prizeCount);
     prizePiles[peerId] = decks[peerId].splice(0, prizeCount);
   }
   for (const peerId of players) {
@@ -212,7 +262,11 @@ export function buildMatch(pool, players) {
   for (const peerId of players) {
     const opponentId = players.find((p) => p !== peerId);
     for (let i = 0; i < mulliganCounts[opponentId]; i++) {
-      if (decks[peerId].length > 0) hands[peerId].push(decks[peerId].shift());
+      // Never let a bonus draw empty the deck entirely — on a small deck,
+      // several opponent mulligans could otherwise drain a player to 0
+      // cards before the game has even started, decking them out on their
+      // very first mandatory draw with zero opportunity to have played.
+      if (decks[peerId].length > 1) hands[peerId].push(decks[peerId].shift());
     }
   }
 
