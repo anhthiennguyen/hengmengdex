@@ -4,7 +4,7 @@ import { useDex } from '../hooks/useDex';
 import { useMembership } from '../hooks/useMembership';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { generateLobbyCode } from '../lobby/lobbyEngine';
-import { checkPoolLegality, MIN_POOL_SIZE, MIN_BASICS } from '../lobby/deckBuilder';
+import { checkPoolLegality, MIN_DECK_SIZE, MIN_DECK_BASICS } from '../lobby/deckBuilder';
 import PokedexGrid from './PokedexGrid';
 import MengModal from './MengModal';
 import MengForm from './MengForm';
@@ -177,12 +177,12 @@ export default function DexView({ dexId, user, onBack, onOpenAuth, onOpenLobby }
             <Swords className="mx-auto text-[var(--dex-accent-500)]" size={28} />
             <h2 className="mt-3 text-lg font-bold text-zinc-900">Not Ready to Battle Yet</h2>
             <p className="mt-2 text-sm text-zinc-600">
-              This dex needs at least {MIN_POOL_SIZE} battle-ready Pokemon/Trainer cards (with attacks, evolution
-              stage, etc. filled in), including {MIN_BASICS}+ Basic Pokemon, before a battle can start.
+              This dex needs at least {MIN_DECK_SIZE} battle-ready Pokemon/Trainer cards (with attacks, evolution
+              stage, etc. filled in), including {MIN_DECK_BASICS}+ Basic Pokemon, before a battle can start.
             </p>
             <p className="mt-2 text-xs font-semibold text-zinc-500">
-              Currently: {poolLegality.cards.length}/{MIN_POOL_SIZE} battle-ready cards, {basicCount}/{MIN_BASICS} Basic
-              Pokemon.
+              Currently: {poolLegality.cards.length}/{MIN_DECK_SIZE} battle-ready cards, {basicCount}/{MIN_DECK_BASICS}{' '}
+              Basic Pokemon.
             </p>
             <button
               type="button"

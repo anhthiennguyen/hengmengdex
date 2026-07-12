@@ -3,6 +3,7 @@ import { Loader2, Trophy, Flag, Layers, Zap, ArrowLeftRight, Sparkles as Sparkle
 import { getEnergyTypeInfo } from '../lib/pokemonTypes';
 import MengCardTile from './MengCardTile';
 import ActivePokemonPanel from './ActivePokemonPanel';
+import DeckBuildPhase from './DeckBuildPhase';
 import SetupPhase from './SetupPhase';
 
 function zoneCount(zone) {
@@ -45,6 +46,14 @@ export default function BattleView({ battle, myPeerId, engine, onClose }) {
               : `${myName}, respond to the challenge from the lobby screen.`}
           </p>
         </div>
+      </Overlay>
+    );
+  }
+
+  if (battle.phase === 'deckbuild') {
+    return (
+      <Overlay wide>
+        <DeckBuildPhase battle={battle} myPeerId={myPeerId} opponentName={opponentName} engine={engine} />
       </Overlay>
     );
   }

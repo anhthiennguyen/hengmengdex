@@ -4,7 +4,14 @@ import { db } from '../lib/firebase';
 import { resolveRules, startTurn } from './effectEngine';
 import { resolveKnockOut, resolveAttack } from './combatEngine';
 import { runCheckup } from './pokemonCheckup';
-import { buildMatch, MIN_POOL_SIZE, MIN_BASICS } from './deckBuilder';
+import {
+  buildMatch,
+  checkPoolLegality,
+  checkSelectionLegality,
+  eligiblePool,
+  MIN_DECK_SIZE,
+  MIN_DECK_BASICS,
+} from './deckBuilder';
 import { validateEnergyLoadout } from './energyLoadout';
 import { redactStateFor } from './battleRedaction';
 
@@ -194,6 +201,10 @@ class LobbyEngine {
     this.send({ type: 'battle_response', battleId, accept });
   }
 
+  submitDeck(battleId, selectedCardIds) {
+    this.send({ type: 'submit_deck', battleId, selectedCardIds });
+  }
+
   submitSetup(battleId, activeCardId, benchCardIds, energyLoadout) {
     this.send({ type: 'submit_setup', battleId, activeCardId, benchCardIds, energyLoadout });
   }
@@ -305,16 +316,65 @@ class LobbyEngine {
 
         try {
           const pool = await fetchCardPool(this.dexId);
-          const match = buildMatch(pool, battle.players);
-          if (!match.legal) {
+          const { legal, cards } = checkPoolLegality(pool);
+          if (!legal) {
             delete this.state.battles[intent.battleId];
             this.state.lastAbortReason =
-              `This Dex needs at least ${MIN_POOL_SIZE} battle-ready cards (with attacks/stage set), including ${MIN_BASICS}+ Basic Pokemon, to start a battle.`;
+              `This Dex needs at least ${MIN_DECK_SIZE} battle-ready cards (with attacks/stage set), including ${MIN_DECK_BASICS}+ Basic Pokemon, to build a deck.`;
             this._broadcast();
             return;
           }
 
           const [pA, pB] = battle.players;
+          Object.assign(battle, {
+            phase: 'deckbuild',
+            cardPool: cards,
+            deckSelections: { [pA]: null, [pB]: null },
+            deckReady: { [pA]: false, [pB]: false },
+            log: [],
+            winner: null,
+          });
+          this.state.lastAbortReason = null;
+          this._broadcast();
+        } catch (err) {
+          console.error('Failed to start battle:', err);
+          delete this.state.battles[intent.battleId];
+          this.state.lastAbortReason = 'Something went wrong starting the battle. Please try again.';
+          this._broadcast();
+        }
+        break;
+      }
+
+      case 'submit_deck': {
+        const battle = this.state.battles[intent.battleId];
+        if (!battle || battle.phase !== 'deckbuild' || !battle.players.includes(fromPeerId)) return;
+        if (battle.deckReady[fromPeerId]) return;
+
+        const requestedIds = Array.isArray(intent.selectedCardIds) ? [...new Set(intent.selectedCardIds)] : [];
+        const selectedCards = requestedIds
+          .map((id) => battle.cardPool.find((c) => c.id === id))
+          .filter(Boolean);
+        if (selectedCards.length !== requestedIds.length) return;
+        if (!checkSelectionLegality(selectedCards)) return;
+
+        battle.deckSelections[fromPeerId] = selectedCards;
+        battle.deckReady[fromPeerId] = true;
+        battle.log.push(`${battle.names[fromPeerId]} finished picking their deck.`);
+
+        const [pA, pB] = battle.players;
+        if (battle.deckReady[pA] && battle.deckReady[pB]) {
+          const match = buildMatch(battle.deckSelections, battle.players);
+          if (!match.legal) {
+            // Shouldn't happen — both selections already passed
+            // checkSelectionLegality individually — but guard defensively
+            // rather than leave the battle stuck mid-transition.
+            battle.deckReady[pA] = false;
+            battle.deckReady[pB] = false;
+            battle.log.push('Something went wrong building your decks — please pick again.');
+            this._broadcast();
+            break;
+          }
+
           Object.assign(battle, {
             phase: 'setup',
             decks: match.decks,
@@ -335,17 +395,14 @@ class LobbyEngine {
             energyAttachedThisTurn: { [pA]: false, [pB]: false },
             supporterUsedThisTurn: { [pA]: false, [pB]: false },
             retreatedThisTurn: { [pA]: false, [pB]: false },
-            log: ['Decks dealt! Choose your Active and Bench Pokemon.', ...match.log],
-            winner: null,
           });
-          this.state.lastAbortReason = null;
-          this._broadcast();
-        } catch (err) {
-          console.error('Failed to start battle:', err);
-          delete this.state.battles[intent.battleId];
-          this.state.lastAbortReason = 'Something went wrong starting the battle. Please try again.';
-          this._broadcast();
+          delete battle.cardPool;
+          delete battle.deckSelections;
+          delete battle.deckReady;
+          battle.log.push('Decks dealt! Choose your Active and Bench Pokemon.', ...match.log);
         }
+
+        this._broadcast();
         break;
       }
 
