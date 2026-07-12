@@ -12,6 +12,13 @@
 
 import { getTypeInfo } from '../lib/pokemonTypes';
 
+// Energy is a scarce, non-renewing resource once shuffled into the deck —
+// KO'd Pokemon take their attached Energy to the discard pile with them,
+// and nothing puts it back. A bare-minimum supply runs dry fast, so every
+// type's dedicated count gets padded well beyond what any single card
+// strictly needs.
+const ENERGY_BUFFER_MULTIPLIER = 2;
+
 // How much Energy (per type) one Pokemon card needs to be able to use
 // ANY of its attacks — the max per type across its attacks, since
 // attached Energy is permanent (never consumed by attacking) and only
@@ -50,7 +57,8 @@ export function synthesizeEnergyCards(selectedCards) {
   const cards = [];
   let n = 0;
   for (const [type, count] of Object.entries(totals)) {
-    for (let i = 0; i < count; i++) {
+    const buffered = Math.ceil(count * ENERGY_BUFFER_MULTIPLIER);
+    for (let i = 0; i < buffered; i++) {
       n += 1;
       cards.push({
         id: `energy-${type}-${n}`,
