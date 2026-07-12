@@ -141,21 +141,11 @@ export function decayStatuses(card) {
   return logs;
 }
 
-// Mandatory draw + deck-out check + whole-team (Active + Bench)
-// on_turn_start triggers/decay, for the player whose turn is starting.
-// Also resets the per-turn action flags and bumps the turn counters.
-// Returns { logs, deckedOut } — deckedOut=true means the game already ended
-// (no draw attempted, battle.phase is 'finished') and the caller must stop.
+// Mandatory draw + whole-team (Active + Bench) on_turn_start triggers/decay,
+// for the player whose turn is starting. Also resets the per-turn action
+// flags and bumps the turn counters.
 export function startTurn(battle, peerId) {
   const logs = [];
-
-  if (battle.decks[peerId].length === 0) {
-    const winner = battle.players.find((p) => p !== peerId);
-    battle.phase = 'finished';
-    battle.winner = winner;
-    logs.push(`${battle.names[peerId]} has no cards left to draw, so ${battle.names[winner]} wins!`);
-    return { logs, deckedOut: true };
-  }
 
   battle.turn = peerId;
   battle.turnNumber = (battle.turnNumber || 0) + 1;
@@ -164,9 +154,11 @@ export function startTurn(battle, peerId) {
   battle.supporterUsedThisTurn[peerId] = false;
   battle.retreatedThisTurn[peerId] = false;
 
-  const drawn = battle.decks[peerId].shift();
-  battle.hands[peerId].push(drawn);
-  logs.push(`${battle.names[peerId]} drew a card.`);
+  if (battle.decks[peerId].length > 0) {
+    const drawn = battle.decks[peerId].shift();
+    battle.hands[peerId].push(drawn);
+    logs.push(`${battle.names[peerId]} drew a card.`);
+  }
 
   const opponentId = battle.players.find((p) => p !== peerId);
   const opponentActive = battle.active[opponentId] || null;
@@ -177,5 +169,5 @@ export function startTurn(battle, peerId) {
     logs.push(...resolveRules(card.rules, 'on_turn_start', card, card.id, opponentActive));
   }
 
-  return { logs, deckedOut: false };
+  return { logs };
 }
